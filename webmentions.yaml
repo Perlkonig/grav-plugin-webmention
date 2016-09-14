@@ -3,14 +3,19 @@ enabled: true
 sender:
   enabled: true
   automatic: false
+  ignore_routes:
+    - /random
   file_data: data_sent.yaml
   file_whitelist: sender_whitelist.yaml
   file_blacklist: sender_blacklist.yaml
 
 receiver:
   enabled: true
+  advertise_method: header # link | anchor (anchor means you are responsible for placement!)
   route: /mentions
   async: true       #DO NOT SET THIS TO FALSE HASTILY! It opens things up for a DOS attack.
+  ignore_routes:
+    - /random
   file_data: data_received.yaml
   file_whitelist: receiver_whitelist.yaml
   file_blacklist: receiver_blacklist.yaml
