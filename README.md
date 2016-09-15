@@ -90,7 +90,7 @@ admin:
 
     - `route` is the route external clients will need to contact to notify you. You can (and probably should) institute rate limiting and other security measures at the server level on this route.
 
-    - `async` determines whether you handle notifications asynchronously or not. **It is strongly recommended that you leave this to `true`!** Otherwise you open yourself up to denial-of-service attacks. 
+    - `async` determines whether you handle notifications asynchronously or not. **It is strongly recommended that you leave this as `true`!** Otherwise you open yourself up to denial-of-service attacks. 
 
       If set to `true`, the plugin will store the webmention request but not action it. You will need to use the admin page or the CLI to process incoming requests.
 
@@ -104,7 +104,7 @@ admin:
 
       If `async` is set to `true`, then the system returns an appropriate error code after verifying the mention (200, 400, or 500, as per the spec).
 
-    - The `ignore_routes` field lists routes you will not accept webmentions for.
+    - The `ignore_routes` field lists routes you will not accept webmentions for nor advertise webmention functionality (*see* `advertise_method`).
 
     - `file_data` is the name of the core data file for received notifications. It lists each page id along with information on the mentioner, voucher, and received and last verified dates.
 
@@ -122,7 +122,7 @@ admin:
 
     - `file_receiver_whitelist` lists domain/path patterns of vouch URLs you are willing to accept without any further verification.
 
-    - `file_receiver_blacklist` lists domain/path patterns of vouce URLs that you will never accept.
+    - `file_receiver_blacklist` lists domain/path patterns of vouch URLs that you will never accept.
 
   - Finally there is the `admin` module, which lets you see and manipulate the data.
 
