@@ -1,5 +1,5 @@
 name: Webmentions
-version: 0.1.0
+version: 1.0.0
 description: Implementation of the Webmention protocol (https://www.w3.org/TR/webmention/) with the Vouch extension
 icon: commenting-o
 author:
@@ -10,6 +10,7 @@ demo: http://demo.yoursite.com
 keywords: grav, plugin, etc
 bugs: https://github.com/Perlkonig/grav-plugin-webmentions/issues
 readme: https://github.com/Perlkonig/grav-plugin-webmentions/blob/develop/README.md
+docs: https://github.com/Perlkonig/grav-plugin-webmentions/blob/develop/README.md
 license: MIT
 
 form:

@@ -15,6 +15,7 @@ file_url_name_map: url_name_map.yaml
 
 sender:
   enabled: true
+  page_only: true # true | *false*
   automatic: false
   ignore_routes:
     - /random
@@ -23,11 +24,11 @@ sender:
 
 receiver:
   enabled: true
-  exposed: true
-  advertise_method: header # *header* | link | manual
+  expose_data: true
+  advertise_method: header # header | link | *manual*
   route: /mentions
-  async: true       #DO NOT SET THIS TO FALSE HASTILY! It opens things up for a DOS attack.
-  status_mode: 202 # 201 | *202*
+  async: true       # DO NOT SET THIS TO FALSE HASTILY! It opens things up for a DDOS attack.
+  status_mode: 202  # 201 | *202*
   ignore_routes:
     - /random
   file_data: data_received.yaml
@@ -40,10 +41,6 @@ vouch:
   file_sender_map: vouch_sender_map.yaml
   file_receiver_whitelist: vouch_receiver_whitelist.yaml
   file_receiver_blacklist: vouch_reciever_blacklist.yaml
-
-admin:
-  enabled: true
-  route: /mentions/admin
 ```
 
 - Grav requires a top-level `enabled` field. This is how you completely disable the plugin.
@@ -56,11 +53,15 @@ admin:
 
   - `sender` is the module that detects external links in your own posts and notifies them of the link.
 
-    - The `enabled` field lets you disable just this module.
+    - The `enabled` field lets you disable just this module. Note that this does *not* disable the CLI interface! You can still scan for and send webmentions manually via the CLI.
 
-    - If `automatic` is set to `true`, then whenever a page is rebuilt (cache miss), the plugin checks the data file. If the page hasn't been processed before, or if the `\Grav\Common\Page\Page::modified()` timestamp is later than what plugin has recorded, the page will automatically be processed and notifications sent.
+      If set to `true`, however, then whenever a page is rebuilt (cache miss), the plugin checks the data file. If the page hasn't been processed before, or if the `\Grav\Common\Page\Page::modified()` timestamp is later than what plugin has recorded, the page will automatically be processed and the data file updated.
 
-      If set to `false`, pages will only be scanned when triggered from the admin page or from the CLI.
+    - The `page_only` field determines what output will actually be scanned for links. If `true`, the scan will happen after the `onPageContentProcessed` event and will only scan the page content for links. If set to `false`, the scan happens after the `onOutputGenerated` event, which will scan the entire content of the &lt;body&gt; tag (for blog set ups, that will include the sidebars, footers, etc.).
+
+    - If `automatic` is set to `true`, then after the page has been scanned and links found, mentions will be sent immediately, before rendering. If the page is link heavy, this could slow down the site.
+
+      If set to `false`, notification will only be sent when triggered by the CLI.
 
     - The `ignore_routes` field lets you disable the sender module for specific routes.
 
@@ -70,9 +71,9 @@ admin:
 
   - `receiver` is the module that accepts notifications of links to your site.
 
-    - The `enabled` field lets you disable just this module.
+    - The `enabled` field lets you disable just this module. You can still use the CLI to manage received webmentions. But no new mentions can be received while disabled.
 
-    - If `exposed` is set to `true`, the plugin will expose to the Grav system via the `config.plugins.webmentions.data` namespace the details about the *verified and approved* webmentions received, ready for use in twig files or other plugins. The format is as follows:
+    - If `expose_data` is set to `true`, the plugin will expose to the Grav system via the `config.plugins.webmentions.data` namespace the details about the *verified and approved* webmentions received, ready for use in twig files or other plugins. The format is as follows:
 
       ```
       data:
@@ -94,7 +95,7 @@ admin:
 
       If set to `true`, the plugin will store the webmention request but not action it. You will need to use the admin page or the CLI to process incoming requests.
 
-      If set to `false`, the plugin will immediately try to verify the webmention. This opens you up to a denial-of-service attack! There's really no good reason to ever do this. The option is here purely for completeness.
+      If set to `false`, the plugin will immediately try to verify the webmention. This opens you up to being used in a DDOS attack! There's really no good reason to ever do this. The option is here purely for completeness.
 
     - `status_mode` only has meaning if `async` is set to `true`. It determines how the plugin will respond to the request. 
 
@@ -114,7 +115,7 @@ admin:
 
   - The `vouch` module implements [the Vouch extension](https://indieweb.org/Vouch) of the original spec.
 
-    - `enabled` turns the module off and on. Note that enabling it does **not** mean that all mentions require vouches! It simply means that the system will accept and process them when they come in.
+    - `enabled` turns the module off and on. Note that enabling it does *not* mean that all mentions require vouches! It simply means that the system will accept and process them when they come in.
 
     - If `auto_approve` is set to `true`, then any mentions that come in with a verified or whitelisted vouch will be automatically approved. Otherwise you have to use the admin page or the CLI to approve, as usual.
 
@@ -124,12 +125,6 @@ admin:
 
     - `file_receiver_blacklist` lists domain/path patterns of vouch URLs that you will never accept.
 
-  - Finally there is the `admin` module, which lets you see and manipulate the data.
-
-    - Use the `enabled` field to turn this module off an on. Even if `false`, the CLI will still function normally.
-
-    - The `route` is where you point your browser to access the admin page. **This route must be access controlled in some way!!** There are numerous Grav plugins that can do this, or you can do it at the server level. **This plugin, though, does not enforce any access controls itself!!**
-
 ## Usage
 
 ### Sender
@@ -138,10 +133,120 @@ admin:
 
 ### Vouch
 
-### Admin page
+### Admin Page
+
+Unfortunately I have no experience with the Grav admin system, nor do I ever plan on using it, so this plugin currently only supports command-line interaction. I warmly welcome pull requests that would provide HTML interaction with the config and data.
 
 ### Command-Line Interface
 
 ## Customization
 
+## File Formats
 
+The plugin works with data files in the `user/data` folder. Here's a list of each file (by config name) and how the plugin expects them to be formatted.
+
+> General note: When inputting regular expressions into YAML files, be sure to use single quotes! This regular expressions are passed directly to the PHP regex engine, so include the leading and trailing forward slash and include any flags at the end (e.g., `/pattern/i` for case insensitive).
+
+### file_url_name_map
+
+This file maps URLs to human-friendly names, useful when displaying mentions in your templates. It should be formatted as follows:
+
+```
+- '{regex}': {name}
+```
+
+For example, this would map `http://test.example.com` to `Alice's example site`:
+
+```
+- '/\/\/alice.example.com/': "Alice's example site"
+```
+
+The plugin processes the map file from top to bottom. The first pattern to match wins.
+
+### sender.file_data
+
+This is where all the data about sent webmentions is stored. It's in the following format:
+
+```
+{slug}:
+  lastmodified: {int from \Grav\Common\Page\Page::modifed()}
+  links:
+    - url: {full url}
+      inpage: {true | false}
+      lastnotified: {int timestamp; if blank, notification is pending}
+      laststatus: {HTTP status code returned at last check}
+      lastmessage: {Any message returned by the receiver when last checked}
+```
+
+### sender.file_blacklist
+
+This lists URLs that you do *not* wish to notify of mentions.
+
+```
+- '{regex}'
+```
+
+For example, you could omit all `wordpress.com` domains as follows:
+
+```
+- '/\/\/.*?wordpress\.com/'
+```
+
+### receiver.file_data
+
+This stores all the data about webmentions you've received. This data can be exposed to your twig templates by setting `receiver.expose_data` to `true`.
+
+```
+{slug}:
+  received: {int timestamp}
+  source_url: {URL that mentioned you}
+  vouch_url: {vouch URL, if it was provided}
+  lastchecked: {int timestamp}
+  valid: {true | false}
+  visible: {true | false}
+```
+
+### receiver.file_blacklist
+
+This lists URLs that you never wish to receive mentions from.
+
+```
+- '{regex}'
+```
+
+For example, you could ignore all mentions from `wordpress.com` domains as follows:
+
+```
+- '/\/\/.*?wordpress\.com/'
+```
+
+### vouch.file_sender_map
+
+This file maps URLs with a hand-selected vouch URL. This must be manually done.
+
+```
+- '{regex}': {vouch URL}
+```
+
+For example, you could tell the vouch system to send a link to Bob's cat post whenever you send a mention to Alice (because you and Alice have interacted before, and Alice and Bob have interacted before, but you and Bob haven't interacted before):
+
+
+```
+- '/\/\/alice.example.com/': 'http://bob.example.com/i/love/my/cat'
+```
+
+### vouch.file_receiver_whitelist
+
+List of URLs you accept as valid vouches without doing any actual checks. The `lastchecked` field for this link will remain blank until you actually verify it. But the `valid` and possibly `visible` fields will be set to `true`.
+
+```
+- '{regex}'
+```
+
+### vouch.file_receiver_blacklist
+
+List of URLs you will never accept as valid vouches. The `lastchecked` field for this link will remain blank unless you actually trigger a check. But the `valid` and `visible` fields will be set to `false`.
+
+```
+- '{regex}'
+```

@@ -4,23 +4,23 @@ file_url_name_map: url_name_map.yaml
 
 sender:
   enabled: true
+  page_only: true # true | *false*
   automatic: false
   ignore_routes:
     - /random
   file_data: data_sent.yaml
-  #file_whitelist: sender_whitelist.yaml
   file_blacklist: sender_blacklist.yaml
 
 receiver:
   enabled: true
-  exposed: true
-  advertise_method: header # link | anchor (anchor means you are responsible for placement!)
+  expose_data: true
+  advertise_method: header # header | link | *manual*
   route: /mentions
   async: true       #DO NOT SET THIS TO FALSE HASTILY! It opens things up for a DOS attack.
+  status_mode: 202  # 201 | *202*
   ignore_routes:
     - /random
   file_data: data_received.yaml
-  #file_whitelist: receiver_whitelist.yaml
   file_blacklist: receiver_blacklist.yaml
   blacklist_silently: true
 
@@ -31,6 +31,3 @@ vouch:
   file_receiver_whitelist: vouch_receiver_whitelist.yaml
   file_receiver_blacklist: vouch_reciever_blacklist.yaml
 
-admin:
-  enabled: true
-  route: /mentions/admin
