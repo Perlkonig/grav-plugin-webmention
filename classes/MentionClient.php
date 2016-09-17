@@ -6,6 +6,8 @@
 
 namespace IndieWeb;
 
+require_once __DIR__ . '/Parser.php';
+
 class MentionClient {
 
   private static $_debugEnabled = false;
@@ -24,7 +26,7 @@ class MentionClient {
 
   private static $_proxy = false;
 
-  public $usemf2 = false; // for testing, can set this to false to avoid using the Mf2 parser
+  public $usemf2 = true; // for testing, can set this to false to avoid using the Mf2 parser
 
   /**
    * @codeCoverageIgnore
@@ -456,5 +458,4 @@ class MentionClient {
 
     return $this->{$key}[$url];
   }
-
 }

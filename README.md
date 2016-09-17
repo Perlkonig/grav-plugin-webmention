@@ -2,6 +2,8 @@
 
 The **Webmention** Plugin is for [Grav CMS](http://github.com/getgrav/grav). It implements the [Webmention protocol](https://www.w3.org/TR/webmention/) with [the Vouch extension](https://indieweb.org/Vouch).
 
+**This plugin is still a work in progress! Do not install at all, yet.**
+
 ## Installation
 
 ## Configuration
@@ -250,3 +252,12 @@ List of URLs you will never accept as valid vouches. The `lastchecked` field for
 ```
 - '{regex}'
 ```
+
+## Credits
+
+I've incorporated the following libraries into this plugin:
+
+  - [IndieWeb/MentionClient](https://github.com/indieweb/mention-client-php) for discovering endpoints and sending notifications.
+
+  - [php-mf2](https://github.com/indieweb/php-mf2) used by IndieWeb/MentionClient to resolve relative URLs.
+  
