@@ -1,16 +1,15 @@
-name: Webmentions
+name: Webmention
 version: 1.0.0
 description: Implementation of the Webmention protocol (https://www.w3.org/TR/webmention/) with the Vouch extension
 icon: commenting-o
 author:
   name: Aaron Dalton
   email: aaron@daltons.ca
-homepage: https://github.com/Perlkonig/grav-plugin-webmentions
-demo: http://demo.yoursite.com
-keywords: grav, plugin, etc
-bugs: https://github.com/Perlkonig/grav-plugin-webmentions/issues
-readme: https://github.com/Perlkonig/grav-plugin-webmentions/blob/develop/README.md
-docs: https://github.com/Perlkonig/grav-plugin-webmentions/blob/develop/README.md
+homepage: https://github.com/Perlkonig/grav-plugin-webmention
+keywords: grav, plugin, pingback, webmention
+bugs: https://github.com/Perlkonig/grav-plugin-webmention/issues
+readme: https://github.com/Perlkonig/grav-plugin-webmention/blob/develop/README.md
+docs: https://github.com/Perlkonig/grav-plugin-webmention/blob/develop/README.md
 license: MIT
 
 form:

@@ -1,16 +1,16 @@
-# Webmentions Plugin
+# Webmention Plugin
 
-The **Webmentions** Plugin is for [Grav CMS](http://github.com/getgrav/grav). It implements the [Webmention protocol](https://www.w3.org/TR/webmention/) with [the Vouch extension](https://indieweb.org/Vouch).
+The **Webmention** Plugin is for [Grav CMS](http://github.com/getgrav/grav). It implements the [Webmention protocol](https://www.w3.org/TR/webmention/) with [the Vouch extension](https://indieweb.org/Vouch).
 
 ## Installation
 
 ## Configuration
 
-Below is the default configuration and an explanation of the different settings. To customize, first copy `webmentions.yaml` to your `user/config/plugins` folder and edit that copy.
+Below is the default configuration and an explanation of the different settings. To customize, first copy `webmention.yaml` to your `user/config/plugins` folder and edit that copy.
 
 ```
 enabled: true
-datadir: webmentions
+datadir: webmention
 file_url_name_map: url_name_map.yaml
 
 sender:
@@ -53,7 +53,7 @@ vouch:
 
   - `sender` is the module that detects external links in your own posts and notifies them of the link.
 
-    - The `enabled` field lets you disable just this module. Note that this does *not* disable the CLI interface! You can still scan for and send webmentions manually via the CLI.
+    - The `enabled` field lets you disable just this module. Note that this does *not* disable the CLI interface! You can still scan for and send webmention manually via the CLI.
 
       If set to `true`, however, then whenever a page is rebuilt (cache miss), the plugin checks the data file. If the page hasn't been processed before, or if the `\Grav\Common\Page\Page::modified()` timestamp is later than what plugin has recorded, the page will automatically be processed and the data file updated.
 
@@ -71,9 +71,9 @@ vouch:
 
   - `receiver` is the module that accepts notifications of links to your site.
 
-    - The `enabled` field lets you disable just this module. You can still use the CLI to manage received webmentions. But no new mentions can be received while disabled.
+    - The `enabled` field lets you disable just this module. You can still use the CLI to manage received webmention. But no new mentions can be received while disabled.
 
-    - If `expose_data` is set to `true`, the plugin will expose to the Grav system via the `config.plugins.webmentions.data` namespace the details about the *verified and approved* webmentions received, ready for use in twig files or other plugins. The format is as follows:
+    - If `expose_data` is set to `true`, the plugin will expose to the Grav system via the `config.plugins.webmention.data` namespace the details about the *verified and approved* webmention received, ready for use in twig files or other plugins. The format is as follows:
 
       ```
       data:
@@ -87,7 +87,7 @@ vouch:
           - ...
       ```
 
-    - The `advertise_method` field tells the plugin how you wish to advertise to external clients that you accept webmentions. There are three methods recognized by the spec: in the HTTP header itself (`header`), as a link element in the head of each page (`link`), or as an anchor in the body of the document (`manual`). If you select `header` or `link`, the advertisement will be done automatically by the plugin. Any other value is interpreted as `manual` and means you will have to insert the link yourself.
+    - The `advertise_method` field tells the plugin how you wish to advertise to external clients that you accept webmention. There are three methods recognized by the spec: in the HTTP header itself (`header`), as a link element in the head of each page (`link`), or as an anchor in the body of the document (`manual`). If you select `header` or `link`, the advertisement will be done automatically by the plugin. Any other value is interpreted as `manual` and means you will have to insert the link yourself.
 
     - `route` is the route external clients will need to contact to notify you. You can (and probably should) institute rate limiting and other security measures at the server level on this route.
 
@@ -105,11 +105,11 @@ vouch:
 
       If `async` is set to `true`, then the system returns an appropriate error code after verifying the mention (200, 400, or 500, as per the spec).
 
-    - The `ignore_routes` field lists routes you will not accept webmentions for nor advertise webmention functionality (*see* `advertise_method`).
+    - The `ignore_routes` field lists routes you will not accept webmention for nor advertise webmention functionality (*see* `advertise_method`).
 
     - `file_data` is the name of the core data file for received notifications. It lists each page id along with information on the mentioner, voucher, and received and last verified dates.
 
-    - `file_blacklist` lists domain/path patterns from the receiver will automatically deny webmentions from.
+    - `file_blacklist` lists domain/path patterns from the receiver will automatically deny webmention from.
 
     - The `blacklist_silently` field tells the plugin how to handle blacklisted requests. If set to `true`, a 200, 201, or 202 will be returned but the request will be automatically rejected (which will be noted on the status page if you set a `status_mode` of `201`). If set to `false`, the requester will receive a `500 INTERNAL SERVER ERROR` (as per the spec) and deliver a message as defined in the `languages.yaml` file (so as honest or as vague as you want it to be).
 
@@ -165,7 +165,7 @@ The plugin processes the map file from top to bottom. The first pattern to match
 
 ### sender.file_data
 
-This is where all the data about sent webmentions is stored. It's in the following format:
+This is where all the data about sent webmention is stored. It's in the following format:
 
 ```
 {slug}:
@@ -194,7 +194,7 @@ For example, you could omit all `wordpress.com` domains as follows:
 
 ### receiver.file_data
 
-This stores all the data about webmentions you've received. This data can be exposed to your twig templates by setting `receiver.expose_data` to `true`.
+This stores all the data about webmention you've received. This data can be exposed to your twig templates by setting `receiver.expose_data` to `true`.
 
 ```
 {slug}:
