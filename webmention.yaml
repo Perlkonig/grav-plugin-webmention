@@ -1,4 +1,4 @@
-enabled: true
+enabled: false
 datadir: webmentions
 file_url_name_map: url_name_map.yaml
 

@@ -8,10 +8,10 @@ use RocketTheme\Toolbox\Event\Event;
 use Symfony\Component\Yaml\Yaml;
 
 /**
- * Class WebmentionsPlugin
+ * Class WebmentionPlugin
  * @package Grav\Plugin
  */
-class WebmentionsPlugin extends Plugin
+class WebmentionPlugin extends Plugin
 {
     /**
      * @return array
@@ -45,12 +45,12 @@ class WebmentionsPlugin extends Plugin
         $config = $this->grav['config'];
         $enabled = array();
 
-        if ($config->get('plugins.webmentions.sender.enabled')) {
+        if ($config->get('plugins.webmention.sender.enabled')) {
             $uri = $this->grav['uri'];
             $path = $uri->path();
-            $disabled = (array) $config->get('plugins.webmentions.sender.ignore_routes');
+            $disabled = (array) $config->get('plugins.webmention.sender.ignore_routes');
             if (!in_array($path, $disabled)) {
-                if ($config->get('plugins.webmentions.sender.page_only')) {
+                if ($config->get('plugins.webmention.sender.page_only')) {
                     $enabled['onPageContentProcessed'] = ['onPageContentProcessed', 0];
                 } else {
                     $enabled['onOutputGenerated'] = ['onOutputGenerated', 0];
@@ -76,7 +76,7 @@ class WebmentionsPlugin extends Plugin
         $this->sender($e, $page->content(), $page);
 
         // If `automatic` is true, send the notifications
-        if ($config->get('plugins.webmentions.sender.automatic')) {
+        if ($config->get('plugins.webmention.sender.automatic')) {
             $this->notify($page);
         }
     }
@@ -96,7 +96,7 @@ class WebmentionsPlugin extends Plugin
         $this->sender($e, $content, $this->grav['page']);
 
         // If `automatic` is true, send the notifications
-        if ($config->get('plugins.webmentions.sender.automatic')) {
+        if ($config->get('plugins.webmention.sender.automatic')) {
             $this->notify($page);
         }
     }
@@ -105,9 +105,9 @@ class WebmentionsPlugin extends Plugin
     {
         $pageid = $page->slug();
         $config = $this->grav['config'];
-        $datadir = $config->get('plugins.webmentions.datadir');
-        $datafile = $config->get('plugins.webmentions.sender.file_data');
-        $blacklist = $config->get('plugins.webmentions.sender.file_blacklist');
+        $datadir = $config->get('plugins.webmention.datadir');
+        $datafile = $config->get('plugins.webmention.sender.file_data');
+        $blacklist = $config->get('plugins.webmention.sender.file_blacklist');
         $root = DATA_DIR . $datadir . '/';
 
         // Load data file
@@ -190,9 +190,9 @@ class WebmentionsPlugin extends Plugin
 
     private function notify ($page = null) {
         $config = $this->grav['config'];
-        $datadir = $config->get('plugins.webmentions.datadir');
-        $datafile = $config->get('plugins.webmentions.sender.file_data');
-        $mapfile = $config->get('plugins.webmentions.vouch.file_sender_map');
+        $datadir = $config->get('plugins.webmention.datadir');
+        $datafile = $config->get('plugins.webmention.sender.file_data');
+        $mapfile = $config->get('plugins.webmention.vouch.file_sender_map');
         $root = DATA_DIR . $datadir . '/';
 
         // Load data file
@@ -206,7 +206,7 @@ class WebmentionsPlugin extends Plugin
         }
 
         // If `vouch` is enabled, load the map file
-        if ($config->get('plugins.webmentions.vouch.enabled')) {
+        if ($config->get('plugins.webmention.vouch.enabled')) {
             $mapfilename = $root . $mapfile;
             if (file_exists($mapfilename)) {
                 $mapfh = File::instance($mapfilename);
@@ -226,7 +226,7 @@ class WebmentionsPlugin extends Plugin
                     if ($link['lastnotified'] === null) {
                         // get vouch, if enabled and mapped
                         $vouch = null;
-                        if ($config->get('plugins.webmentions.vouch.enabled')) {
+                        if ($config->get('plugins.webmention.vouch.enabled')) {
                             foreach ($mapdata as $pattern => $vouchurl) {
                                 if (preg_match($pattern, $link['url'])) {
                                     $vouch = $vouchurl;
