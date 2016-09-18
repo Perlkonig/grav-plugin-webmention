@@ -1,9 +1,9 @@
-enabled: false
-datadir: webmentions
+enabled: true
+datadir: webmention
 file_url_name_map: url_name_map.yaml
 
 sender:
-  enabled: true
+  enabled: false
   page_only: true # true | *false*
   automatic: false
   ignore_routes:
@@ -12,7 +12,7 @@ sender:
   file_blacklist: sender_blacklist.yaml
 
 receiver:
-  enabled: true
+  enabled: true   # Because this affects your page data, be sure to clear the cache when changing
   expose_data: true
   advertise_method: header # header | link | *manual*
   route: /mentions

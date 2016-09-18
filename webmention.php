@@ -13,6 +13,9 @@ use Symfony\Component\Yaml\Yaml;
  */
 class WebmentionPlugin extends Plugin
 {
+
+    protected $route;
+
     /**
      * @return array
      *
@@ -45,20 +48,72 @@ class WebmentionPlugin extends Plugin
         $config = $this->grav['config'];
         $enabled = array();
 
+        // SENDER
         if ($config->get('plugins.webmention.sender.enabled')) {
             $uri = $this->grav['uri'];
             $path = $uri->path();
             $disabled = (array) $config->get('plugins.webmention.sender.ignore_routes');
             if (!in_array($path, $disabled)) {
                 if ($config->get('plugins.webmention.sender.page_only')) {
-                    $enabled['onPageContentProcessed'] = ['onPageContentProcessed', 0];
+                    $enabled = $this->add_enable($enabled, 'onPageContentProcessed',  ['onPageContentProcessed', 0]);
                 } else {
-                    $enabled['onOutputGenerated'] = ['onOutputGenerated', 0];
+                    $enabled = $this->add_enable($enabled, 'onOutputGenerated', ['onOutputGenerated', 0]);
                 }
             }
         }
 
+        // RECEIVER
+        if ($config->get('plugins.webmention.receiver.enabled')) {
+            // ROUTE
+            $uri = $this->grav['uri'];
+            $this->route = $config->get('plugins.webmention.receiver.route');
+            if ($this->route && $this->startsWith($uri->path(), $this->route)) {
+                $enabled = $this->add_enable($enabled, 'onPagesInitialized', ['handleReceipt', 0]);
+            }
+            // EXPOSE_DATA
+            // ADVERTISE
+        }
+
         $this->enable($enabled);
+    }
+
+    private function add_enable ($array, $key, $value) {
+        if (array_key_exists($key, $array)) {
+            array_push($array[$key], $value);
+        } else {
+            $array[$key] = [$value];
+        }
+        return $array;
+    }
+
+    private function startsWith($haystack, $needle) {
+        // search backwards starting from haystack length characters from the end
+        return $needle === "" || strrpos($haystack, $needle, -strlen($haystack)) !== false;
+    }    
+
+    private function endsWith($haystack, $needle) {
+        // search forward starting from end minus needle length characters
+        return $needle === "" || (($temp = strlen($haystack) - strlen($needle)) >= 0 && strpos($haystack, $needle, $temp) !== false);
+    }
+
+    public function handleReceipt() {
+        // Somebody actually sent us a mention
+        if (!empty($_POST)) {
+            $source = null;
+            $target = null;
+            $vouch = null;
+            if (isset($_POST['source'])) {
+                $source = $_POST['source'];
+            }
+            if (isset($_POST['target'])) {
+                $target = $_POST['target'];
+            }
+            if (isset($_POST['vouch'])) {
+                $vouch = $_POST['vouch'];
+            }
+        } else {
+        // Someone is asking about an earlier request
+        }
     }
 
     /**
@@ -115,7 +170,7 @@ class WebmentionPlugin extends Plugin
         $datafh = File::instance($filename);
         $datafh->lock(); // Apparently this will create a nonexistent file, too.
         $data = Yaml::parse($datafh->content());
-        if ( ($data === null) || (! in_array($pageid, $data)) ){
+        if ( ($data === null) || (! array_key_exists($pageid, $data)) ){
             $data[$pageid] = [
                 'lastmodified' => null,
                 'links' => []
@@ -129,6 +184,8 @@ class WebmentionPlugin extends Plugin
             //scan for links
             $client = new \IndieWeb\MentionClient();
             $links = $client->findOutgoingLinks($content);
+            //dump('Found outgoing links');
+            //dump($links);
 
             //get blacklist
             $blfilename = $root . $blacklist;
@@ -154,17 +211,23 @@ class WebmentionPlugin extends Plugin
                     array_push($whitelinks, $link);
                 }
             }
+            //dump('The following are the whitelisted links:');
+            //dump($whitelinks);
 
             $existing = array();
+            //dump($data[$pageid]['links']);
             // Look for existing or missing links
             foreach ($data[$pageid]['links'] as &$prevlink) {
-                array_push($existing, $prevlink->url);
-                if (! in_array($prevlink->url, $links)) {
-                    $prevlink->inpage = false;
-                    $prevlink->lastnotified = null;
+                //dump('Checking previous link: '.$prevlink['url'].' against the following links:');
+                //dump($whitelinks);
+                array_push($existing, $prevlink['url']);
+                if (! in_array($prevlink['url'], $whitelinks)) {
+                    //dump('Found missing link: '.$prevlink['url']);
+                    $prevlink['inpage'] = false;
+                    $prevlink['lastnotified'] = null;
                 } else {
-                    $prevlink->inpage = true;
-                    $prevlink->lastnotified = null;
+                    $prevlink['inpage'] = true;
+                    $prevlink['lastnotified'] = null;
                 }
             }
             unset($prevlink);
@@ -218,9 +281,9 @@ class WebmentionPlugin extends Plugin
             }            
         }
 
-        foreach ($data as $slug => &$value) {
+        foreach ($data as $slug => &$pagedata) {
             if ( ($page === null) || ($slug === $page->slug()) ) {
-                foreach ($value['links'] as &$link) {
+                foreach ($pagedata['links'] as &$link) {
                     //dump('Attempting to notify '.$link['url']);
                     $client = new \IndieWeb\MentionClient();
                     if ($link['lastnotified'] === null) {
@@ -265,7 +328,7 @@ class WebmentionPlugin extends Plugin
                 unset($link);
             }
         }
-        unset($value);
+        unset($pagedata);
 
         // Save updated data
         $datafh->save(YAML::dump($data));

@@ -25,7 +25,7 @@ sender:
   file_blacklist: sender_blacklist.yaml
 
 receiver:
-  enabled: true
+  enabled: true   # Because this affects your page data, be sure to clear the cache when changing
   expose_data: true
   advertise_method: header # header | link | *manual*
   route: /mentions
@@ -200,12 +200,13 @@ This stores all the data about webmention you've received. This data can be expo
 
 ```
 {slug}:
-  received: {int timestamp}
-  source_url: {URL that mentioned you}
-  vouch_url: {vouch URL, if it was provided}
-  lastchecked: {int timestamp}
-  valid: {true | false}
-  visible: {true | false}
+  - source_url: {URL that mentioned you}
+    vouch_url: {vouch URL, if it was provided}
+    received: {int timestamp}
+    hash: {md5 of slug, source, and received; only used for 201 responses}
+    lastchecked: {int timestamp}
+    valid: {true | false}
+    visible: {true | false}
 ```
 
 ### receiver.file_blacklist
@@ -260,4 +261,3 @@ I've incorporated the following libraries into this plugin:
   - [IndieWeb/MentionClient](https://github.com/indieweb/mention-client-php) for discovering endpoints and sending notifications.
 
   - [php-mf2](https://github.com/indieweb/php-mf2) used by IndieWeb/MentionClient to resolve relative URLs.
-  
