@@ -70,6 +70,7 @@ class WebmentionPlugin extends Plugin
             if ($this->route && $this->startsWith($uri->path(), $this->route)) {
                 $enabled = $this->add_enable($enabled, 'onPagesInitialized', ['handleReceipt', 0]);
             }
+            $enabled = $this->add_enable($enabled, 'onTwigTemplatePaths', ['onTwigTemplatePaths', 0]);
             // EXPOSE_DATA
             // ADVERTISE
         }
@@ -96,8 +97,10 @@ class WebmentionPlugin extends Plugin
         return $needle === "" || (($temp = strlen($haystack) - strlen($needle)) >= 0 && strpos($haystack, $needle, $temp) !== false);
     }
 
-    public function handleReceipt() {
+    public function handleReceipt(Event $e) {
         // Somebody actually sent us a mention
+        $config = $this->grav['config'];
+
         if (!empty($_POST)) {
             $source = null;
             $target = null;
@@ -108,12 +111,126 @@ class WebmentionPlugin extends Plugin
             if (isset($_POST['target'])) {
                 $target = $_POST['target'];
             }
-            if (isset($_POST['vouch'])) {
+            if ( ($config->get('plugins.webmention.vouch.enabled')) && (isset($_POST['vouch'])) ) {
                 $vouch = $_POST['vouch'];
             }
+
+            // Section 3.2.1 Request Verification
+            //   $source and $target must be present
+            if ( is_null($source) || is_null($target)) {
+                $this->throw_400();
+                return;
+            }
+            //   $source, $target, and $vouch (if present) must be valid URLs
+            if ( (!filter_var($source, FILTER_VALIDATE_URL)) || (!filter_var($target, FILTER_VALIDATE_URL)) ) {
+                $this->throw_400();
+                return;
+            }
+            if ( (!is_null($vouch)) && (!filter_var($vouch, FILTER_VALIDATE_URL)) ) {
+                $this->throw_400();
+                return;
+            }
+            //   $source, $target, and $vouch (if present) must be http or https scheme
+            if ( (! $this->startsWith($source, 'http://')) && (! $this->startsWith($source, 'https://')) ) {
+                $this->throw_400();
+                return;
+            }
+            if ( (! $this->startsWith($target, 'http://')) && (! $this->startsWith($target, 'https://')) ) {
+                $this->throw_400();
+            }
+            if (! is_null($vouch)) {
+                if ( (! $this->startsWith($vouch, 'http://')) && (! $this->startsWith($vouch, 'https://')) ) {
+                    $this->throw_400();
+                    return;
+                }
+            }
+            //   $source must not equal $target
+            if ($source === $target) {
+                $this->throw_400();
+                return;
+            }
+            //   $vouch (if present) must not equal $source or $target
+            if (! is_null($vouch)) {
+                if ( ($source === $vouch) || ($target === $vouch) ) {
+                    $this->throw_400();
+                    return;
+                }
+            }
+            //   $target must accept webmentions
+            $accepts = true;
+            foreach ($config->get('plugins.webmention.receiver.ignore_routes') as $route) {
+                if ($this->endsWith($target, $route)) {
+                    $accepts = false;
+                    break;
+                }
+            }
+            if (! $accepts) {
+                $this->throw_400($this->grav['language']->translate('PLUGIN_WEBMENTION.MESSAGES.BAD_REQUEST_BADROUTE'));
+                return;
+            }
+            //   $source must not be blacklisted
+            $blacklisted = false;
+            foreach ($config->get('plugins.webmention.receiver.blacklist') as $pattern) {
+                if (preg_match($pattern, $source)) {
+                    $blacklisted = true;
+                    break;
+                }
+            }
+            if ( $blacklisted && (! $config->get('plugins.webmention.receiver.blacklist_silently'))) {
+                $this->throw_403();
+                return;
+            }
+
+            // Vouch extension checks
+            if ( ($config->get('plugins.webmention.vouch.enabled')) && ($config->get('plugins.webmention.vouch.required')) ) {
+                // First delete $vouch if blacklisted
+                if ($vouch !== null) {
+                    $vblisted = false;
+                    foreach ($config->get('plugins.webmention.vouch.blacklist') as $pattern) {
+                        if (preg_match($pattern, $vouch)) {
+                            $vblisted = true;
+                            break;
+                        }
+                    }
+                    if ($vblisted) {
+                        $vouch = null;
+                    }
+                }
+
+                // $vouch is present if $source is not whitelisted
+                if ($vouch === null) {
+                    $iswhite = false;
+                    foreach ($config->get('plugins.webmention.receiver.whitelist') as $pattern) {
+                        if (preg_match($pattern, $source)) {
+                            $iswhite = true;
+                            break;
+                        }
+                    }
+                    if (! $iswhite) {
+                        $this->throw_400($this->grav['language']->translate('PLUGIN_WEBMENTION.MESSAGES.BAD_REQUEST_MISSING_VOUCH'));
+                        return;
+                    }
+                }
+            }
+
+            // Anything that should trigger an error message should have triggered by now.
+            // Now we write this mention to the data file and return the appropriate 2XX response.
+            $datadir = $config->get('plugins.webmention.datadir');
+            $datafile = $config->get('plugins.webmention.receiver.file_data');
+            $root = DATA_DIR . $datadir . '/';
+
         } else {
         // Someone is asking about an earlier request
+            $this->grav['page']->init(new \SplFileInfo(__DIR__ . '/pages/status-update.md'));
         }
+    }
+
+    private function throw_400($msg = null) {
+        if ($msg === null) {
+            $msg = $this->grav['language']->translate('PLUGIN_WEBMENTION.MESSAGES.BAD_REQUEST_SPEC');
+        }
+        $this->grav['config']->set('plugins.webmention._msg', $msg);
+
     }
 
     /**
@@ -162,7 +279,6 @@ class WebmentionPlugin extends Plugin
         $config = $this->grav['config'];
         $datadir = $config->get('plugins.webmention.datadir');
         $datafile = $config->get('plugins.webmention.sender.file_data');
-        $blacklist = $config->get('plugins.webmention.sender.file_blacklist');
         $root = DATA_DIR . $datadir . '/';
 
         // Load data file
@@ -173,6 +289,7 @@ class WebmentionPlugin extends Plugin
         if ( ($data === null) || (! array_key_exists($pageid, $data)) ){
             $data[$pageid] = [
                 'lastmodified' => null,
+                'permalink' => $page->permalink(),
                 'links' => []
             ];
         }
@@ -180,6 +297,7 @@ class WebmentionPlugin extends Plugin
         // Only do something if the timestamps don't match
         if ($data[$pageid]['lastmodified'] !== $page->modified()) {
             $data[$pageid]['lastmodified'] = $page->modified();
+            $data[$pageid]['permalink'] = $page->permalink();
             
             //scan for links
             $client = new \IndieWeb\MentionClient();
@@ -188,20 +306,12 @@ class WebmentionPlugin extends Plugin
             //dump($links);
 
             //get blacklist
-            $blfilename = $root . $blacklist;
-            if (file_exists($blfilename)) {
-                $blfh = File::instance($blfilename);
-                $bldata = YAML::parse($blfh->content());
-                $blfh->free();
-            }
-            if ($bldata === null) {
-                $bldata = array();
-            }
+            $blacklist = $config->get('plugins.webmention.sender.blacklist');
 
             $whitelinks = array();
             foreach ($links as $link) {
                 $clean = true;
-                foreach ($bldata as $pattern) {
+                foreach ($blacklist as $pattern) {
                     if (preg_match($pattern, $link)) {
                         $clean = false;
                         break;
@@ -333,5 +443,10 @@ class WebmentionPlugin extends Plugin
         // Save updated data
         $datafh->save(YAML::dump($data));
         $datafh->free();
+    }
+
+    public function onTwigTemplatePaths()
+    {
+        $this->grav['twig']->twig_paths[] = __DIR__ . '/templates';
     }
 }

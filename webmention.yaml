@@ -1,33 +1,41 @@
 enabled: true
 datadir: webmention
-file_url_name_map: url_name_map.yaml
+#url_name_map:
+# - 'regex': name #maps domain/path patterns to human-friendly names, for use when displaying mentions and vouch information to your readers
 
 sender:
-  enabled: false
-  page_only: true # true | *false*
+  enabled: true
+  page_only: true
   automatic: false
   ignore_routes:
     - /random
   file_data: data_sent.yaml
-  file_blacklist: sender_blacklist.yaml
+  #blacklist: 
+  #  - 'regex' of external links you do *not* wish to notify of mentions
 
 receiver:
-  enabled: true   # Because this affects your page data, be sure to clear the cache when changing
+  enabled: true   
   expose_data: true
   advertise_method: header # header | link | *manual*
   route: /mentions
-  async: true       #DO NOT SET THIS TO FALSE HASTILY! It opens things up for a DOS attack.
-  status_mode: 202  # 201 | *202*
+  status_updates: true
   ignore_routes:
     - /random
   file_data: data_received.yaml
-  file_blacklist: receiver_blacklist.yaml
   blacklist_silently: true
+  #blacklist:
+  #  - 'regex' of notifiers you do *not* wish to receive notifications from
+  #whitelist:
+  #  - 'regex' of notifiers you are willing to accept without vouches (only meaningful if `vouch.required` is set to `true`)
 
 vouch:
   enabled: true
+  required: false   # Don't set this to `true` lightly!
   auto_approve: true
-  file_sender_map: vouch_sender_map.yaml
-  file_receiver_whitelist: vouch_receiver_whitelist.yaml
-  file_receiver_blacklist: vouch_reciever_blacklist.yaml
+  #sender_map: 
+  #  - 'regex': URL #maps external domain/paths that you mention to a manually selected vouch URL.
+  #whitelist: 
+  #  - 'regex' of vouches you accept without verification
+  #blacklist: 
+  #  - 'regex' of vouches you will never accept
 
