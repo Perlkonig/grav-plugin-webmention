@@ -1,4 +1,4 @@
-enabled: true
+enabled: false
 datadir: webmention
 #url_name_map:
 # - 'regex': name #maps domain/path patterns to human-friendly names, for use when displaying mentions and vouch information to your readers
@@ -9,6 +9,7 @@ sender:
   automatic: false
   ignore_routes:
     - /random
+    - /mentions
   file_data: data_sent.yaml
   #blacklist: 
   #  - 'regex' of external links you do *not* wish to notify of mentions

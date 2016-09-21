@@ -168,7 +168,7 @@ The plugin works with data files in the `user/data` folder. Here's a list of eac
 This is where all the data about sent webmention is stored. It's in the following format:
 
 ```
-{slug}:
+{route}:
   lastmodified: {int from \Grav\Common\Page\Page::modifed()}
   permalink: {\Grav\Common\Page\Page::permalink(); necessary because the CLI can't access individual pages programmatically, apparently}
   links:
@@ -184,11 +184,11 @@ This is where all the data about sent webmention is stored. It's in the followin
 This stores all the data about webmention you've received. This data can be exposed to your twig templates by setting `receiver.expose_data` to `true`.
 
 ```
-{slug}:
-  - source_url: {URL that mentioned you}
+{route}:
+  - source_url: {URL that mentioned you} # this is the key
+    hash: {md5 of slug, source, and received; only used for 201 responses}
     vouch_url: {vouch URL, if it was provided}
     received: {int timestamp}
-    hash: {md5 of slug, source, and received; only used for 201 responses}
     lastchecked: {int timestamp}
     valid: {true | false}
     visible: {true | false}

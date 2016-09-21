@@ -2,6 +2,7 @@
 namespace Grav\Plugin;
 
 use Grav\Common\Plugin;
+use Grav\Common\Uri;
 use Grav\Common\Page\Page;
 use RocketTheme\Toolbox\File\File;
 use RocketTheme\Toolbox\Event\Event;
@@ -66,8 +67,8 @@ class WebmentionPlugin extends Plugin
         if ($config->get('plugins.webmention.receiver.enabled')) {
             // ROUTE
             $uri = $this->grav['uri'];
-            $this->route = $config->get('plugins.webmention.receiver.route');
-            if ($this->route && $this->startsWith($uri->path(), $this->route)) {
+            $route = $config->get('plugins.webmention.receiver.route');
+            if ($route && $this->startsWith($uri->path(), $route)) {
                 $enabled = $this->add_enable($enabled, 'onPagesInitialized', ['handleReceipt', 0]);
             }
             $enabled = $this->add_enable($enabled, 'onTwigTemplatePaths', ['onTwigTemplatePaths', 0]);
@@ -100,6 +101,9 @@ class WebmentionPlugin extends Plugin
     public function handleReceipt(Event $e) {
         // Somebody actually sent us a mention
         $config = $this->grav['config'];
+        $datadir = $config->get('plugins.webmention.datadir');
+        $datafile = $config->get('plugins.webmention.receiver.file_data');
+        $root = DATA_DIR . $datadir . '/';
 
         if (!empty($_POST)) {
             $source = null;
@@ -169,16 +173,18 @@ class WebmentionPlugin extends Plugin
                 return;
             }
             //   $source must not be blacklisted
-            $blacklisted = false;
-            foreach ($config->get('plugins.webmention.receiver.blacklist') as $pattern) {
-                if (preg_match($pattern, $source)) {
-                    $blacklisted = true;
-                    break;
+            if ($config->get('plugins.webmention.receiver.blacklist')) {
+                $blacklisted = false;
+                foreach ($config->get('plugins.webmention.receiver.blacklist') as $pattern) {
+                    if (preg_match($pattern, $source)) {
+                        $blacklisted = true;
+                        break;
+                    }
                 }
-            }
-            if ( $blacklisted && (! $config->get('plugins.webmention.receiver.blacklist_silently'))) {
-                $this->throw_403();
-                return;
+                if ( $blacklisted && (! $config->get('plugins.webmention.receiver.blacklist_silently'))) {
+                    $this->throw_403();
+                    return;
+                }
             }
 
             // Vouch extension checks
@@ -186,10 +192,12 @@ class WebmentionPlugin extends Plugin
                 // First delete $vouch if blacklisted
                 if ($vouch !== null) {
                     $vblisted = false;
-                    foreach ($config->get('plugins.webmention.vouch.blacklist') as $pattern) {
-                        if (preg_match($pattern, $vouch)) {
-                            $vblisted = true;
-                            break;
+                    if ($config->get('plugins.webmention.vouch.blacklist')) {
+                        foreach ($config->get('plugins.webmention.vouch.blacklist') as $pattern) {
+                            if (preg_match($pattern, $vouch)) {
+                                $vblisted = true;
+                                break;
+                            }
                         }
                     }
                     if ($vblisted) {
@@ -200,10 +208,12 @@ class WebmentionPlugin extends Plugin
                 // $vouch is present if $source is not whitelisted
                 if ($vouch === null) {
                     $iswhite = false;
-                    foreach ($config->get('plugins.webmention.receiver.whitelist') as $pattern) {
-                        if (preg_match($pattern, $source)) {
-                            $iswhite = true;
-                            break;
+                    if ($config->get('plugins.webmention.receiver.whitelist')) {
+                        foreach ($config->get('plugins.webmention.receiver.whitelist') as $pattern) {
+                            if (preg_match($pattern, $source)) {
+                                $iswhite = true;
+                                break;
+                            }
                         }
                     }
                     if (! $iswhite) {
@@ -215,13 +225,103 @@ class WebmentionPlugin extends Plugin
 
             // Anything that should trigger an error message should have triggered by now.
             // Now we write this mention to the data file and return the appropriate 2XX response.
-            $datadir = $config->get('plugins.webmention.datadir');
-            $datafile = $config->get('plugins.webmention.receiver.file_data');
-            $root = DATA_DIR . $datadir . '/';
+
+            // Store
+            //   Load the current data
+            $filename = $root . $datafile;
+            $datafh = File::instance($filename);
+            $datafh->lock();
+            $data = Yaml::parse($datafh->content());
+            if ($data === null) {
+                $data = array();
+            }
+
+            //   Does this mention already exist?
+            $uri = new \Grav\Common\Uri;
+            $uri->initializeWithUrl($target);
+            $route = $uri->route();
+            $isdupe = false;
+            if (array_key_exists($route, $data)) {
+                foreach ($data[$route] as &$entry) {
+                    if ($entry['source_url'] === $source) {
+                        $isdupe = true;
+                        $entry['received'] = time();
+                        $entry['vouch_url'] = $vouch;
+                        $entry['lastchecked'] = null;
+                        $entry['valid'] = null;
+                        $entry['visible'] = false;
+                        break;
+                    }
+                }
+                unset($entry);
+            } else {
+                $data[$route] = array();
+            }
+            $hash = md5($source.'|'.$target);
+            if (! $isdupe) {
+                $entry = [
+                    'source_url' => $source,
+                    'hash' => $hash,
+                    'received' => time(),
+                    'vouch_url' => $vouch,
+                    'lastchecked' => null,
+                    'valid' => null,
+                    'visible' => false
+                ];
+                array_push($data[$route], $entry);
+            }
+
+            $datafh->save(YAML::dump($data));
+            $datafh->free();
+
+            // Respond
+            $route = $this->grav['uri']->route();
+            $pages = $this->grav['pages'];
+            $page = new Page;
+            if ($config->get('plugins.webmention.receiver.status_updates')) {
+                $page->init(new \SplFileInfo(__DIR__ . '/pages/201-created.md'));
+            } else {
+                $config->set('plugins.webmention._msg', $config->get('plugins.webmention.receiver.route').'/'.$hash);
+                $page->init(new \SplFileInfo(__DIR__ . '/pages/202-accepted.md'));
+            }
+            $page->slug(basename($route));
+            $pages->addPage($page, $route);        
 
         } else {
         // Someone is asking about an earlier request
-            $this->grav['page']->init(new \SplFileInfo(__DIR__ . '/pages/status-update.md'));
+            // get the hash
+            $route = $this->grav['uri']->route();
+            $hash = end(explode('/', $route));
+
+            // find it
+            $filename = $root . $datafile;
+            $datafh = File::instance($filename);
+            $data = Yaml::parse($datafh->content());
+            $datafh->free();
+            if ($data === null) {
+                return; // Should result in a 404 naturally
+            } else {
+                $entry = null;
+                foreach ($data as $key => $value) {
+                    foreach ($value as $link) {
+                        if ($link['hash'] === $hash) {
+                            $entry = $link;
+                            break 2;
+                        }
+                    }
+                }
+                if ($entry === null) {
+                    return; // Should result in a 404 naturally
+                }
+                
+            }
+
+            // output
+            $pages = $this->grav['pages'];
+            $page = new Page;
+            $page->init(new \SplFileInfo(__DIR__ . '/pages/status-update.md'));
+            $page->slug(basename($route));
+            $pages->addPage($page, $route);        
         }
     }
 
@@ -230,7 +330,22 @@ class WebmentionPlugin extends Plugin
             $msg = $this->grav['language']->translate('PLUGIN_WEBMENTION.MESSAGES.BAD_REQUEST_SPEC');
         }
         $this->grav['config']->set('plugins.webmention._msg', $msg);
+        $route = $this->grav['uri']->route();
+        $pages = $this->grav['pages'];
+        $page = new Page;
+        $page->init(new \SplFileInfo(__DIR__ . '/pages/400-bad-request.md'));
+        $page->slug(basename($route));
+        $pages->addPage($page, $route);        
+    }
 
+    private function throw_403() {
+        $this->grav['config']->set('plugins.webmention._msg', $msg);
+        $route = $this->grav['uri']->route();
+        $pages = $this->grav['pages'];
+        $page = new Page;
+        $page->init(new \SplFileInfo(__DIR__ . '/pages/403-forbidden.md'));
+        $page->slug(basename($route));
+        $pages->addPage($page, $route);        
     }
 
     /**
@@ -242,7 +357,8 @@ class WebmentionPlugin extends Plugin
     public function onPageContentProcessed(Event $e)
     {
         $config = $this->grav['config'];
-        $page = $e['page'];
+        //$page = $e['page'];
+        $page = $this->grav['page'];
 
         // process the content
         $this->sender($e, $page->content(), $page);
@@ -275,7 +391,7 @@ class WebmentionPlugin extends Plugin
 
     private function sender(Event $e, $content, $page)
     {
-        $pageid = $page->slug();
+        $pageid = $page->route();
         $config = $this->grav['config'];
         $datadir = $config->get('plugins.webmention.datadir');
         $datafile = $config->get('plugins.webmention.sender.file_data');
@@ -391,8 +507,8 @@ class WebmentionPlugin extends Plugin
             }            
         }
 
-        foreach ($data as $slug => &$pagedata) {
-            if ( ($page === null) || ($slug === $page->slug()) ) {
+        foreach ($data as $pageid => &$pagedata) {
+            if ( ($page === null) || ($pageid === $page->route()) ) {
                 foreach ($pagedata['links'] as &$link) {
                     //dump('Attempting to notify '.$link['url']);
                     $client = new \IndieWeb\MentionClient();

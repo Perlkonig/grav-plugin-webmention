@@ -1,8 +1,8 @@
 ---
 title: Bad Request
 robots: noindex,nofollow
-template: default
-routable: false
+template: webmention
+routable: true
 http_response_code: 400
 twig_first: true
 process:

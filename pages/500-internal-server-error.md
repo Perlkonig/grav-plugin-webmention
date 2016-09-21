@@ -1,8 +1,8 @@
 ---
 title: Internal Server Error
 robots: noindex,nofollow
-template: default
-routable: false
+template: webmention
+routable: true
 http_response_code: 500
 twig_first: true
 process:
