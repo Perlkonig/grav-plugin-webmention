@@ -15,4 +15,5 @@ en:
         MENTIONER: 'Mentioner'
         MENTIONEE: 'Mentionee'
         DATE_RECEIVED: 'Date received'
-        STATUS: 'Status'
+        VALID: 'Valid'
+        APPROVED: 'Approved'

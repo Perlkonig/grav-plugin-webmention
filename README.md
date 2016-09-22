@@ -34,7 +34,7 @@ receiver:
   advertise_method: header # header | link | *manual*
   route: /mentions
   status_updates: true
-  ignore_routes:
+  ignore_path:
     - /random
   file_data: data_received.yaml
   blacklist_silently: true
@@ -75,7 +75,7 @@ vouch:
 
       If set to `false`, notification will only be sent when triggered by the CLI.
 
-    - The `ignore_routes` field lets you disable the sender module for specific routes.
+    - The `ignore_routes` field lets you disable the sender module for specific routes. Note that you do *not* need to include the `receiver.route` in this list. That route and all children of it are automatically screened out.
 
     - `file_data` is the name of the core data file for sent notifications. It lists all the page ids and their last modified dates as well as all the external links and their status.
 
@@ -111,7 +111,7 @@ vouch:
 
       Synchronous verification is *not* supported by this plugin because it should never be allowed! It opens you up to become a vector in a DDoS attack.
 
-    - The `ignore_routes` field lists routes you will not accept webmention for nor advertise webmention functionality (*see* `advertise_method`).
+    - The `ignore_paths` field lists paths you will not accept webmention for nor advertise webmention functionality (*see* `advertise_method`). This is just the final path, not the formal route, which Grav can't derive from an arbitrary URL. If the target URL *ends with* any of the listed paths, the webmention will not be accepted.
 
     - `file_data` is the name of the core data file for received notifications. It lists each page id along with information on the mentioner, voucher, and received and last verified dates. **This data cannot be simply regenerated or derived!** It is strongly recommended that you periodically back this file up to prevent loss or corruption.
 
@@ -184,7 +184,7 @@ This is where all the data about sent webmention is stored. It's in the followin
 This stores all the data about webmention you've received. This data can be exposed to your twig templates by setting `receiver.expose_data` to `true`.
 
 ```
-{route}:
+{target_url (the full url, not just the route)}:
   - source_url: {URL that mentioned you} # this is the key
     hash: {md5 of slug, source, and received; only used for 201 responses}
     vouch_url: {vouch URL, if it was provided}

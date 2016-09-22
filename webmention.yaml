@@ -9,7 +9,6 @@ sender:
   automatic: false
   ignore_routes:
     - /random
-    - /mentions
   file_data: data_sent.yaml
   #blacklist: 
   #  - 'regex' of external links you do *not* wish to notify of mentions
@@ -20,7 +19,7 @@ receiver:
   advertise_method: header # header | link | *manual*
   route: /mentions
   status_updates: true
-  ignore_routes:
+  ignore_paths:
     - /random
   file_data: data_received.yaml
   blacklist_silently: true

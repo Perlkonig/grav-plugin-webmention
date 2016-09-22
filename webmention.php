@@ -55,10 +55,20 @@ class WebmentionPlugin extends Plugin
             $path = $uri->path();
             $disabled = (array) $config->get('plugins.webmention.sender.ignore_routes');
             if (!in_array($path, $disabled)) {
-                if ($config->get('plugins.webmention.sender.page_only')) {
-                    $enabled = $this->add_enable($enabled, 'onPageContentProcessed',  ['onPageContentProcessed', 0]);
-                } else {
-                    $enabled = $this->add_enable($enabled, 'onOutputGenerated', ['onOutputGenerated', 0]);
+                // find mention routes
+                $clean = true;
+                foreach ($disabled as $route) {
+                    if ($this->startsWith($path, $config->get('plugins.webmention.receiver.route'))) {
+                        $clean = false;
+                        break;
+                    }
+                }
+                if ($clean) {
+                    if ($config->get('plugins.webmention.sender.page_only')) {
+                        $enabled = $this->add_enable($enabled, 'onPageContentProcessed',  ['onPageContentProcessed', 0]);
+                    } else {
+                        $enabled = $this->add_enable($enabled, 'onOutputGenerated', ['onOutputGenerated', 0]);
+                    }
                 }
             }
         }
@@ -162,7 +172,7 @@ class WebmentionPlugin extends Plugin
             }
             //   $target must accept webmentions
             $accepts = true;
-            foreach ($config->get('plugins.webmention.receiver.ignore_routes') as $route) {
+            foreach ($config->get('plugins.webmention.receiver.ignore_paths') as $route) {
                 if ($this->endsWith($target, $route)) {
                     $accepts = false;
                     break;
@@ -237,12 +247,9 @@ class WebmentionPlugin extends Plugin
             }
 
             //   Does this mention already exist?
-            $uri = new \Grav\Common\Uri;
-            $uri->initializeWithUrl($target);
-            $route = $uri->route();
             $isdupe = false;
-            if (array_key_exists($route, $data)) {
-                foreach ($data[$route] as &$entry) {
+            if (array_key_exists($target, $data)) {
+                foreach ($data[$target] as &$entry) {
                     if ($entry['source_url'] === $source) {
                         $isdupe = true;
                         $entry['received'] = time();
@@ -255,7 +262,7 @@ class WebmentionPlugin extends Plugin
                 }
                 unset($entry);
             } else {
-                $data[$route] = array();
+                $data[$target] = array();
             }
             $hash = md5($source.'|'.$target);
             if (! $isdupe) {
@@ -268,7 +275,7 @@ class WebmentionPlugin extends Plugin
                     'valid' => null,
                     'visible' => false
                 ];
-                array_push($data[$route], $entry);
+                array_push($data[$target], $entry);
             }
 
             $datafh->save(YAML::dump($data));
@@ -279,9 +286,9 @@ class WebmentionPlugin extends Plugin
             $pages = $this->grav['pages'];
             $page = new Page;
             if ($config->get('plugins.webmention.receiver.status_updates')) {
+                $config->set('plugins.webmention._msg', $config->get('plugins.webmention.receiver.route').'/'.$hash);
                 $page->init(new \SplFileInfo(__DIR__ . '/pages/201-created.md'));
             } else {
-                $config->set('plugins.webmention._msg', $config->get('plugins.webmention.receiver.route').'/'.$hash);
                 $page->init(new \SplFileInfo(__DIR__ . '/pages/202-accepted.md'));
             }
             $page->slug(basename($route));
@@ -306,6 +313,7 @@ class WebmentionPlugin extends Plugin
                     foreach ($value as $link) {
                         if ($link['hash'] === $hash) {
                             $entry = $link;
+                            $entry['target'] = $key;
                             break 2;
                         }
                     }
@@ -319,6 +327,15 @@ class WebmentionPlugin extends Plugin
             // output
             $pages = $this->grav['pages'];
             $page = new Page;
+            $config->set('plugins.webmention._msg.mentioner', $entry['source_url']);
+            $config->set('plugins.webmention._msg.mentionee', $entry['target']);
+            $config->set('plugins.webmention._msg.date_received', $entry['received']);
+            if ($entry['valid'] === null) {
+                $config->set('plugins.webmention._msg.valid', 'Not yet checked');
+            } else {
+                $config->set('plugins.webmention._msg.valid', ($entry['source_url'] ? 'Yes' : 'No'));
+            }
+            $config->set('plugins.webmention._msg.approved', ($entry['visible'] ? 'Yes' : 'No'));
             $page->init(new \SplFileInfo(__DIR__ . '/pages/status-update.md'));
             $page->slug(basename($route));
             $pages->addPage($page, $route);        
