@@ -282,11 +282,15 @@ class WebmentionPlugin extends Plugin
             $datafh->free();
 
             // Respond
+            $base = $this->grav['uri']->base();
             $route = $this->grav['uri']->route();
+            $rcvr_route = $config->get('plugins.webmention.receiver.route');
             $pages = $this->grav['pages'];
             $page = new Page;
             if ($config->get('plugins.webmention.receiver.status_updates')) {
-                $config->set('plugins.webmention._msg', $config->get('plugins.webmention.receiver.route').'/'.$hash);
+                $status_url = $base.$rcvr_route.'/'.$hash;
+                header('Location: '.$status_url);
+                $config->set('plugins.webmention._msg', $status_url);
                 $page->init(new \SplFileInfo(__DIR__ . '/pages/201-created.md'));
             } else {
                 $page->init(new \SplFileInfo(__DIR__ . '/pages/202-accepted.md'));
@@ -444,10 +448,12 @@ class WebmentionPlugin extends Plugin
             $whitelinks = array();
             foreach ($links as $link) {
                 $clean = true;
-                foreach ($blacklist as $pattern) {
-                    if (preg_match($pattern, $link)) {
-                        $clean = false;
-                        break;
+                if ($blacklist !== null) {
+                    foreach ($blacklist as $pattern) {
+                        if (preg_match($pattern, $link)) {
+                            $clean = false;
+                            break;
+                        }
                     }
                 }
                 if ($clean) {

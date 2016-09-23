@@ -1,4 +1,4 @@
-enabled: false
+enabled: true
 datadir: webmention
 #url_name_map:
 # - 'regex': name #maps domain/path patterns to human-friendly names, for use when displaying mentions and vouch information to your readers

@@ -16,7 +16,7 @@ require_once __DIR__ . '/../classes/MentionClient.php';
  *
  * @package Grav\Plugin\Console
  */
-class NotifyCommand extends ConsoleCommand
+class VerifyCommand extends ConsoleCommand
 {
     /**
      * @var array
@@ -29,13 +29,13 @@ class NotifyCommand extends ConsoleCommand
     protected function configure()
     {
         $this
-            ->setName("notify")
-            ->setDescription("Sends webmentions")
+            ->setName("verify")
+            ->setDescription("Verifies received webmentions")
             ->addOption(
                 'old',
                 null,
                 InputOption::VALUE_REQUIRED,
-                'After how many days do you want to retry failed notifications?',
+                'After how many days do you want to reverify webmentions?',
                 30
             );
     }
