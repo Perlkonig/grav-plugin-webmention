@@ -9,6 +9,7 @@ en:
       BAD_REQUEST_BADROUTE: 'That target does not accept webmentions.'
       BAD_REQUEST_MISSING_VOUCH: 'This target requires that webmentions be accompanied by a valid vouch.'
       FORBIDDEN: 'This sender has been blacklisted. Please do not retry.'
+      METHOD_NOT_ALLOWED: 'You may not GET this resource. You may only POST to it as per the Webmention spec.'
       INTERNAL_ERROR: "Something is wrong on our side. We can't process your webmention at this time. Please try again later."
       STATUS_UPDATE:
         HEADING: 'Webmention Status'

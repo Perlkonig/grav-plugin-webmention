@@ -35,9 +35,19 @@ class NotifyCommand extends ConsoleCommand
                 'old',
                 null,
                 InputOption::VALUE_REQUIRED,
-                'After how many days do you want to retry failed notifications?',
-                30
-            );
+                'The number of days after which you want to retry failed notifications.',
+                30)
+            ->addOption(
+                'autoconfirm',
+                'y',
+                InputOption::VALUE_NONE,
+                'Answers "yes" to all the prompts automatically (for use in scripted environments)')
+            ->addOption(
+                'suppressinfo',
+                'x',
+                InputOption::VALUE_NONE,
+                'Suppresses the informational output but not the processing output. It implies --autoconfirm. Intended for scripted environments.')
+            ->setHelp('The <info>notify</info> command sends notifications to external links. Output is controlled at three levels: the "autoconfirm" option will print all output and skip all prompts; the "suppressinfo" option implies "autoconfirm" and only produces output if links are actually notifed; and finally the "quiet" option impiles all of the above and outputs nothing at all.');
     }
 
     /**
@@ -47,8 +57,13 @@ class NotifyCommand extends ConsoleCommand
     {
         // Collects the arguments and options as defined
         $this->options = [
-            'old' => $this->input->getOption('old')
+            'old' => $this->input->getOption('old'),
+            'auto' => $this->input->getOption('autoconfirm'),
+            'suppress' => $this->input->getOption('suppressinfo')
         ];
+        if ( ($this->output->isQuiet()) || ($this->options['suppress']) ) {
+            $this->options['auto'] = true;
+        }
 
         $config = $this->getgrav()['config'];
         $datadir = $config->get('plugins.webmention.datadir');
@@ -64,36 +79,61 @@ class NotifyCommand extends ConsoleCommand
         //   Total unnotified
         $count = $this->count_unnotified($data);
         if ($count > 0) {
-            $this->output->writeln('There are '.$count.' notifications pending.');
+            if (! $this->options['suppress']) {
+                $this->output->writeln('There are '.$count.' notifications pending.');
+            }
             $helper = $this->getHelper('question');
             $question = new ConfirmationQuestion('Do you wish to notify these mentions (Y/n)?', true);
-            if ($helper->ask($this->input, $this->output, $question)) {
+            if ( ($this->options['auto']) || ($helper->ask($this->input, $this->output, $question)) ) {
                 $data = $this->notify($data);
             }
         } else {
-            $this->output->writeln('There are no notifications pending.');
+            if (! $this->options['suppress']) {
+                $this->output->writeln('There are no notifications pending.');
+            }
+        }
+
+        //   Cull old links
+        $count = $this->count_tocull($data);
+        if ($count > 0) {
+            if (! $this->options['suppress']) {
+                $this->output->writeln('There are '.$count.' links that have been removed from your pages that you have also notified the linker of. These can be safely deleted.');
+            }
+            $helper = $this->getHelper('question');
+            $question = new ConfirmationQuestion('Do you wish to delete these records (Y/n)?', true);
+            if ( ($this->options['auto']) || ($helper->ask($this->input, $this->output, $question)) ) {
+                $data = $this->cull_removed($data);
+            }
+        } else {
+            if (! $this->options['suppress']) {
+                $this->output->writeln('There are no removed links pending deletion.');
+            }
         }
 
         //   Total entries not checked for X (30) days
         $old = $this->options['old'];
         $count = $this->count_old($data, $old);
         if ($count > 0) {
-            $this->output->writeln('There are '.$count.' old notifications (older than '.$old.' days).');
-            $question = new ConfirmationQuestion('Do you wish to retry/resend these old mentions (Y/n)?', true);
-            if ($helper->ask($this->input, $this->output, $question)) {
+            if (! $this->options['suppress']) {
+                $this->output->writeln('There are '.$count.' old failed notifications (older than '.$old.' days).');
+            }
+            $question = new ConfirmationQuestion('Do you wish to retry these old mentions (Y/n)?', true);
+            if ( ($this->options['auto']) || ($helper->ask($this->input, $this->output, $question)) ) {
                 $data = $this->reset_old($data, $old);
                 $data = $this->notify($data);
-            } else {
-                $this->output->writeln('You said no!');
             }
         } else {
-            $this->output->writeln('There are no old notifications (older than '.$old.' days).');
+            if (! $this->options['suppress']) {
+                $this->output->writeln('There are no old notifications (older than '.$old.' days).');
+            }
         }
 
         // Save data
         $datafh->save(YAML::dump($data));
         $datafh->free();
-        $this->output->writeln('Done.');
+        if (! $this->options['suppress']) {
+            $this->output->writeln('Done.');
+        }
     }
 
     private function count_unnotified($data) {
@@ -117,13 +157,44 @@ class NotifyCommand extends ConsoleCommand
         if ($data !== null) {
             foreach ($data as $pageid => $pagedata) {
                 foreach ($pagedata['links'] as $link) {
+                    // Is old?
                     if ( (!is_null($link['lastnotified'])) && ($link['lastnotified'] <= $threshold) ) {
-                        $count++;
+                        // Is failed?
+                        if ( (is_null($link['laststatus'])) || (!$this->startsWith($link['laststatus'], '2')) ) {
+                            $count++;    
+                        }
                     }
                 }
             }
         }        
         return $count;
+    }
+
+    private function count_tocull($data) {
+        $count = 0;
+        if ($data !== null) {
+            foreach ($data as $pageid => $pagedata) {
+                foreach($pagedata['links'] as $link) {
+                    if ( (! $link['inpage']) && ($link['lastnotified'] !== null) && ($this->startsWith($link['laststatus'], '2')) ) {
+                        $count++;
+                    }
+                }
+            }
+        }
+        return $count;
+    }
+
+    private function cull_removed($data) {
+        if ($data !== null) {
+            foreach ($data as $pageid => &$pagedata) {
+                foreach($pagedata['links'] as $key => $link) {
+                    if ( (! $link['inpage']) && ($link['lastnotified'] !== null) && ($this->startsWith($link['laststatus'], '2')) ) {
+                        unset($pagedata['links'][$key]);
+                    }
+                }
+            }
+        }
+        return $data;
     }
 
     private function reset_old($data, $days) {
@@ -132,8 +203,12 @@ class NotifyCommand extends ConsoleCommand
         if ($data !== null) {
             foreach ($data as $pageid => &$pagedata) {
                 foreach ($pagedata['links'] as &$link) {
-                    if ($link['lastnotified'] <= $threshold) {
-                        $link['lastnotified'] = null;
+                    // Is old?
+                    if ( (!is_null($link['lastnotified'])) && ($link['lastnotified'] <= $threshold) ) {
+                        // Is failed?
+                        if ( (is_null($link['laststatus'])) || (!$this->startsWith($link['laststatus'], '2')) ) {
+                            $link['lastnotified'] = null;  
+                        }
                     }
                 }
                 unset($link);
@@ -150,12 +225,7 @@ class NotifyCommand extends ConsoleCommand
 
             // If `vouch` is enabled, load the map file
             if ($config->get('plugins.webmention.vouch.enabled')) {
-                $mapfilename = $root . $mapfile;
-                if (file_exists($mapfilename)) {
-                    $mapfh = File::instance($mapfilename);
-                    $mapdata = YAML::parse($mapfh->content());
-                    $mapfh->free();
-                }
+                $mapdata = (array) $config->get('plugins.webmention.vouch.send_map');
                 if ($mapdata === null) {
                     $mapdata = array();
                 }            
@@ -185,12 +255,34 @@ class NotifyCommand extends ConsoleCommand
                         // discover endpoint and send if supported
                         $supports = $client->discoverWebmentionEndpoint($link['url']);
                         if ($supports) {
-                           $this->output->writeln("\t\tEndpoint found: " . var_dump($supports));
+                            $this->output->writeln("\t\tEndpoint found: " . var_export($supports, true));
+
+                            // Verify that endpoint does not resolve to a loopback address
+                            $allgood = true;
+                            $url = parse_url($supports);
+                            if ($url) {
+                                $ip = gethostbyname($url['host']);
+                                if (self::ip_in_range($ip, '127.0.0.0/32')) {
+                                    $allgood = false;
+                                } elseif (self::ip_in_range($ip, '10.0.0.0/8')) {
+                                    $allgood = false;
+                                } elseif (self::ip_in_range($ip, '172.16.0.0/12')) {
+                                    $allgood = false;
+                                } elseif (self::ip_in_range($ip, '192.168.0.0/16')) {
+                                    $allgood = false;
+                                }
+                            }
+                            if (! $allgood) {
+                                $link['lastnotified'] = time();
+                                $link['laststatus'] = null;
+                                $link['lastmessage'] = 'ENDPOINT IS A LOOPBACK/RESERVED ADDRESS! You should probably blacklist this sender.';
+                                continue;
+                            }
 
                             if ($vouch !== null) {
-                                $result = $client->sendWebmention($page->permalink(), $link['url'], ['vouch' => $vouch]);    
+                                $result = $client->sendWebmention($pagedata['permalink'], $link['url'], ['vouch' => $vouch]);    
                             } else {
-                                $result = $client->sendWebmention($page->permalink(), $link['url']);    
+                                $result = $client->sendWebmention($pagedata['permalink'], $link['url']);    
                             }
                             //dump($result);
                             $link['lastnotified'] = time();
@@ -216,4 +308,28 @@ class NotifyCommand extends ConsoleCommand
         }        
         return $data;
     }
+
+    /**
+     * Check if a given ip is in a network
+     * @param  string $ip    IP to check in IPV4 format eg. 127.0.0.1
+     * @param  string $range IP/CIDR netmask eg. 127.0.0.0/24, also 127.0.0.1 is accepted and /32 assumed
+     * @return boolean true if the ip is in this range / false if not.
+     */
+    private static function ip_in_range( $ip, $range ) {
+        if ( strpos( $range, '/' ) == false ) {
+            $range .= '/32';
+        }
+        // $range is in IP/CIDR format eg 127.0.0.1/24
+        list( $range, $netmask ) = explode( '/', $range, 2 );
+        $range_decimal = ip2long( $range );
+        $ip_decimal = ip2long( $ip );
+        $wildcard_decimal = pow( 2, ( 32 - $netmask ) ) - 1;
+        $netmask_decimal = ~ $wildcard_decimal;
+        return ( ( $ip_decimal & $netmask_decimal ) == ( $range_decimal & $netmask_decimal ) );
+    }
+
+    private function startsWith($haystack, $needle) {
+        // search backwards starting from haystack length characters from the end
+        return $needle === "" || strrpos($haystack, $needle, -strlen($haystack)) !== false;
+    }    
 }

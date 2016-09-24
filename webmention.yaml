@@ -31,7 +31,7 @@ receiver:
 vouch:
   enabled: true
   required: false   # Don't set this to `true` lightly!
-  auto_approve: true
+  auto_approve: valid # white | valid | none
   #sender_map: 
   #  - 'regex': URL #maps external domain/paths that you mention to a manually selected vouch URL.
   #whitelist: 
