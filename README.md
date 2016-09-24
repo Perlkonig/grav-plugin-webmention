@@ -4,6 +4,8 @@ The **Webmention** Plugin is for [Grav CMS](http://github.com/getgrav/grav). It 
 
 This plugin is in a beta state. It *does* work, but it has not been extensively tested. It's a young spec and adoption is limited. I encourage people to install it and use it and provide feedback and pull requests. The only way specs like this get adopted is by people using it. Go to.
 
+An [implementation report](https://github.com/w3c/webmention/tree/master/implementation-reports) has been submitted.
+
 ## Installation
 
 Installing the Webmention plugin can be done in one of two ways. The GPM (Grav Package Manager) installation method enables you to quickly and easily install the plugin with a simple terminal command, while the manual method enables you to do so via a zip file.
@@ -290,6 +292,8 @@ For those looking at the source code and going, "Holy heck why did he do it that
     I need the `permalink` field because the CLI cannot build full URIs from route information. The CLI has access to config, but that appears to be about it. It's why I can't create a `scan` command.
 
   - The `receiver.file_data` is keyed by full URL because I can't get Grav to recognize and parse a URL passed in full. This is why it's `receiver.ignore_paths` instead of `receiver.ignore_routes`. The system makes sure the host is right and that the path doesn't end with one of the ignored strings.
+
+    Yes this means that if you change domains or your route structure (without appropriate redirects) your mentions will stop showing up in your themes. (a) That's probably a good thing because the sender has no way of knowing you moved anyway and the link would be dead. (b) You can trivially fix this with some sort of grep.
 
   - The MF2 data is just dumped as is. There are no checks around usefulness nor consistency in how it is formatting. Since I'm an MF2 novice, I welcome pull requests around how to approach this.
 
