@@ -160,7 +160,11 @@ Also, this plugin does not display any data itself. It will make data available 
 
 ### Sender
 
+<<<<<<< HEAD
 If enabled, the system will scan pages on a cache miss and collect any external links into the data file. You would then use the CLI (described below) to actually notify those links.
+=======
+If enabled, the system will scan pages on a cache miss and collect them into the data file. You would then use the CLI (described below) to actually notify those links.
+>>>>>>> 7cfb9da40cbdaace049a480b40809f0a028389fb
 
 There *is* a `sender.automatic` feature that will try to send notifications right away, but this will definitely slow down the page rendering. You would only want to do this if you were [precaching pages](https://github.com/getgrav/grav-plugin-precache) or had some other specific use case.
 
