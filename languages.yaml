@@ -18,3 +18,24 @@ en:
         DATE_RECEIVED: 'Date received'
         VALID: 'Valid'
         APPROVED: 'Approved'
+        
+fr:
+  PLUGIN_WEBMENTION:
+    MESSAGES:
+      OK: "Votre Webmention a été reçue et traitée."
+      CREATED: "Votre Webmention a été reçue et sera traitée ultérieurement."
+      ACCEPTED: "Votre Webmention a été reçue et sera traitée ultérieurement."
+      BAD_REQUEST: "Une erreur s'est produite lors de votre demande. Veuillez ne pas réessayer avant d'avoir lu le message d’erreur suivant et corrigé l’erreur."
+      BAD_REQUEST_SPEC: "Votre demande n’est pas conforme aux exigences. Veuillez consulter la documentation, adapter votre demande, et réessayer."
+      BAD_REQUEST_BADROUTE: "Cette cible n'accepte pas les Webmentions."
+      BAD_REQUEST_MISSING_VOUCH: "Cette cible impose que les Webmentions soient accompagnées d’un garant valable."
+      FORBIDDEN: "Cet expéditeur a été blacklisté. Veuillez ne pas réessayer."
+      METHOD_NOT_ALLOWED: "Vous ne pouvez pas utiliser GET pour cette ressource. Vous pouvez uniquement utiliser POST conformément à la spécification Webmention."
+      INTERNAL_ERROR: "Quelque chose ne va pas de notre côté. Nous ne pouvons pas traiter votre Webmention pour le moment. Veuillez essayer plus tard."
+      STATUS_UPDATE:
+        HEADING: "Statut de la Webmention"
+        MENTIONER: "Mentionneur"
+        MENTIONEE: "Mentionné"
+        DATE_RECEIVED: "Date de réception"
+        VALID: "Valider"
+        APPROVED: "Approuvé"
