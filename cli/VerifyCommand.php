@@ -9,7 +9,8 @@ use Symfony\Component\Console\Question\ConfirmationQuestion;
 use RocketTheme\Toolbox\File\File;
 use Symfony\Component\Yaml\Yaml;
 use Grav\Plugin\WebmentionPlugin;
-require_once __DIR__ . '/../classes/MentionClient.php';
+//require_once __DIR__ . '/../classes/MentionClient.php';
+require_once __DIR__ . '/../classes/Parser.php';
 
 /**
  * Class HelloCommand
@@ -30,14 +31,24 @@ class VerifyCommand extends ConsoleCommand
     {
         $this
             ->setName("verify")
-            ->setDescription("Verifies received webmentions")
+            ->setDescription("Verifies webmentions")
             ->addOption(
                 'old',
                 null,
                 InputOption::VALUE_REQUIRED,
-                'After how many days do you want to reverify webmentions?',
-                30
-            );
+                'The number of days after which you want to reverify notifications.',
+                30)
+            ->addOption(
+                'autoconfirm',
+                'y',
+                InputOption::VALUE_NONE,
+                'Answers "yes" to all the prompts automatically (for use in scripted environments)')
+            ->addOption(
+                'suppressinfo',
+                'x',
+                InputOption::VALUE_NONE,
+                'Suppresses the informational output but not the processing output. It implies --autoconfirm. Intended for scripted environments.')
+            ->setHelp('The <info>verify</info> command verifies received webmentions. Output is controlled at three levels: the "autoconfirm" option will print all output and skip all prompts; the "suppressinfo" option implies "autoconfirm" and only produces output if links are actually notifed; and finally the "quiet" option impiles all of the above and outputs nothing at all.');
     }
 
     /**
@@ -47,12 +58,17 @@ class VerifyCommand extends ConsoleCommand
     {
         // Collects the arguments and options as defined
         $this->options = [
-            'old' => $this->input->getOption('old')
+            'old' => $this->input->getOption('old'),
+            'auto' => $this->input->getOption('autoconfirm'),
+            'suppress' => $this->input->getOption('suppressinfo')
         ];
+        if ( ($this->output->isQuiet()) || ($this->options['suppress']) ) {
+            $this->options['auto'] = true;
+        }
 
         $config = $this->getgrav()['config'];
         $datadir = $config->get('plugins.webmention.datadir');
-        $datafile = $config->get('plugins.webmention.sender.file_data');
+        $datafile = $config->get('plugins.webmention.receiver.file_data');
         $root = DATA_DIR . $datadir . '/';
 
         $filename = $root . $datafile;
@@ -62,46 +78,71 @@ class VerifyCommand extends ConsoleCommand
 
         // Get counts and notify in batches
         //   Total unnotified
-        $count = $this->count_unnotified($data);
+        $count = $this->count_unverified($data);
         if ($count > 0) {
-            $this->output->writeln('There are '.$count.' notifications pending.');
+            if (! $this->options['suppress']) {
+                $this->output->writeln('There are '.$count.' verifications pending.');
+            }
             $helper = $this->getHelper('question');
-            $question = new ConfirmationQuestion('Do you wish to notify these mentions (Y/n)?', true);
-            if ($helper->ask($this->input, $this->output, $question)) {
-                $data = $this->notify($data);
+            $question = new ConfirmationQuestion('Do you wish to verify these mentions (Y/n)?', true);
+            if ( ($this->options['auto']) || ($helper->ask($this->input, $this->output, $question)) ) {
+                $data = $this->verify($data);
             }
         } else {
-            $this->output->writeln('There are no notifications pending.');
+            if (! $this->options['suppress']) {
+                $this->output->writeln('There are no verifications pending.');
+            }
         }
 
         //   Total entries not checked for X (30) days
         $old = $this->options['old'];
         $count = $this->count_old($data, $old);
         if ($count > 0) {
-            $this->output->writeln('There are '.$count.' old notifications (older than '.$old.' days).');
-            $question = new ConfirmationQuestion('Do you wish to retry/resend these old mentions (Y/n)?', true);
-            if ($helper->ask($this->input, $this->output, $question)) {
+            if (! $this->options['suppress']) {
+                $this->output->writeln('There are '.$count.' old verified webmentions (older than '.$old.' days).');
+            }
+            $question = new ConfirmationQuestion('Do you wish to reverify these old mentions (Y/n)?', true);
+            if ( ($this->options['auto']) || ($helper->ask($this->input, $this->output, $question)) ) {
                 $data = $this->reset_old($data, $old);
-                $data = $this->notify($data);
-            } else {
-                $this->output->writeln('You said no!');
+                $data = $this->verify($data);
             }
         } else {
-            $this->output->writeln('There are no old notifications (older than '.$old.' days).');
+            if (! $this->options['suppress']) {
+                $this->output->writeln('There are no old verifications (older than '.$old.' days).');
+            }
+        }
+
+        //   Total 410s
+        $count = $this->count_410s($data);
+        if ($count > 0) {
+            if (! $this->options['suppress']) {
+                $this->output->writeln('There are '.$count.' mentions now returning "410 GONE."');
+            }
+            $helper = $this->getHelper('question');
+            $question = new ConfirmationQuestion('Do you wish to delete these mentions (Y/n)?', true);
+            if ( ($this->options['auto']) || ($helper->ask($this->input, $this->output, $question)) ) {
+                $data = $this->cull_410s($data);
+            }
+        } else {
+            if (! $this->options['suppress']) {
+                $this->output->writeln('There are no mentions returning "410 GONE."');
+            }
         }
 
         // Save data
         $datafh->save(YAML::dump($data));
         $datafh->free();
-        $this->output->writeln('Done.');
+        if (! $this->options['suppress']) {
+            $this->output->writeln('Done.');
+        }
     }
 
-    private function count_unnotified($data) {
+    private function count_unverified($data) {
         $count = 0;
         if ($data !== null) {
             foreach ($data as $pageid => $pagedata) {
-                foreach ($pagedata['links'] as $link) {
-                    if ($link['lastnotified'] === null) {
+                foreach ($pagedata as $link) {
+                    if ($link['lastchecked'] === null) {
                         $count++;
                     }
                 }
@@ -116,9 +157,10 @@ class VerifyCommand extends ConsoleCommand
         $count = 0;
         if ($data !== null) {
             foreach ($data as $pageid => $pagedata) {
-                foreach ($pagedata['links'] as $link) {
-                    if ( (!is_null($link['lastnotified'])) && ($link['lastnotified'] <= $threshold) ) {
-                        $count++;
+                foreach ($pagedata as $link) {
+                    // Is old?
+                    if ( (!is_null($link['lastchecked'])) && ($link['lastchecked'] <= $threshold) ) {
+                        $count++;    
                     }
                 }
             }
@@ -126,14 +168,42 @@ class VerifyCommand extends ConsoleCommand
         return $count;
     }
 
+    private function count_410s($data) {
+        $count = 0;
+        if ($data !== null) {
+            foreach ($data as $pageid => $pagedata) {
+                foreach ($pagedata as $link) {
+                    if ($link['lastcode'] == 410) {
+                        $count++;
+                    }
+                }
+            }
+        }        
+        return $count;        
+    }
+
+    private function cull_410s($data) {
+        if ($data !== null) {
+            foreach ($data as $pageid => &$pagedata) {
+                foreach($pagedata as $key => &$link) {
+                    if ($link['lastcode'] == 410) {
+                        unset($pagedata[$key]);
+                    }
+                }
+            }
+        }
+        return $data;
+    }
+
     private function reset_old($data, $days) {
         $seconds = $days * 24 * 60 * 60;
         $threshold = time() - $seconds;
         if ($data !== null) {
             foreach ($data as $pageid => &$pagedata) {
-                foreach ($pagedata['links'] as &$link) {
-                    if ($link['lastnotified'] <= $threshold) {
-                        $link['lastnotified'] = null;
+                foreach ($pagedata as &$link) {
+                    // Is old?
+                    if ( (!is_null($link['lastchecked'])) && ($link['lastchecked'] <= $threshold) ) {
+                        $link['lastchecked'] = null;  
                     }
                 }
                 unset($link);
@@ -143,71 +213,133 @@ class VerifyCommand extends ConsoleCommand
         return $data;
     }
 
-    private function notify($data) {
+    private function verify($data) {
         if ($data !== null) {
             $config = $this->getgrav()['config'];
-            $client = new \IndieWeb\MentionClient();
 
-            // If `vouch` is enabled, load the map file
-            if ($config->get('plugins.webmention.vouch.enabled')) {
-                $mapfilename = $root . $mapfile;
-                if (file_exists($mapfilename)) {
-                    $mapfh = File::instance($mapfilename);
-                    $mapdata = YAML::parse($mapfh->content());
-                    $mapfh->free();
-                }
-                if ($mapdata === null) {
-                    $mapdata = array();
-                }            
-            }
-
-            //Iterate and notify
+            //Iterate and verify
             foreach ($data as $slug => &$pagedata) {
-                $this->output->writeln('Route: ' . $slug);
-                foreach ($pagedata['links'] as &$link) {
-                    $this->output->writeln("\tLink: " . $link['url']);
-                    if ($link['lastnotified'] === null) {
-                        $this->output->writeln("\t\tProcessing...");
-                        // get vouch, if enabled and mapped
-                        $vouch = null;
-                        if ($config->get('plugins.webmention.vouch.enabled')) {
-                            foreach ($mapdata as $pattern => $vouchurl) {
-                                if (preg_match($pattern, $link['url'])) {
-                                    $vouch = $vouchurl;
-                                    break;
+                $this->output->writeln('Target URL: ' . $slug);
+                foreach ($pagedata as &$link) {
+                    $this->output->writeln("\tSource URL: " . $link['source_url']);
+                    if ($link['lastchecked'] === null) {
+                        $this->output->writeln("\t\tVerifying...");
+                        // Set `lastchecked`
+                        $link['lastchecked'] = time();
+                        // Fetch the source url
+                        $result = self::_get($link['source_url']);
+                        $link['lastcode'] = $result['code'];
+                        $result['headers'] = array_change_key_case($result['headers'], CASE_LOWER);
+                        //$this->output->writeln('Result: '.var_export($result, true));
+                        // Validate the source
+                        $valid = false;
+                        if (self::startsWith($result['code'], '2')) {
+                            // Check for HTML, then do naive search
+                            if ( (isset($result['headers']['content-type'])) && (self::startsWith(strtolower($result['headers']['content-type']), 'text/html')) ) {
+                                $content = $result['body'];
+                                // strip all comments
+                                $content = preg_replace('/<!--.*?-->/', '', $content);
+                                // search href
+                                if (strpos($content, 'href="'.$slug.'"') !== false) {
+                                    $valid = true;
+                                // search src
+                                } elseif (strpos($content, 'src="'.$slug.'"') !== false) {
+                                    $valid = true;
+                                }
+                            } else {
+                                if (strpos($result['body'], $slug) !== false) {
+                                   $valid = true;
                                 }
                             }
                         }
-                        if ($vouch !== null) {
-                            $this->output->writeln("\t\tVouch found: " . $vouch);
+                        $this->output->writeln("\t\tValid: " . var_export($valid, true));
+
+                        // Extract MF2 if present
+                        $link['source_mf2'] = null;
+                        $mf2 = \Mf2\parse($result['body'], $link['source_url']);
+                        if ($mf2 !== null) {
+                            $link['source_mf2'] = $mf2;
                         }
+                        $link['vouch_mf2'] = null;
 
-                        // discover endpoint and send if supported
-                        $supports = $client->discoverWebmentionEndpoint($link['url']);
-                        if ($supports) {
-                           $this->output->writeln("\t\tEndpoint found: " . var_dump($supports));
+                        // If vouch, only if valid
+                        if ($valid) {
+                            $vouchrequired = false;
+                            $autoapprove = 'none';
+                            $vouchvalid = false;
+                            $vouchwhite = false;
+                            $vouchblack = false;
+                            if ($config->get('plugins.webmention.vouch.enabled')) {
+                                $vouchrequired = $config->get('plugins.webmention.vouch.required');
+                                $autoapprove = $config->get('plugins.webmention.vouch.auto_approve');
+                                $vouch = $link['vouch_url'];
+                                if ($vouch !== null) {
+                                    //   Check whitelist
+                                    $whitelist = (array) $config->get('plugins.webmention.vouch.whitelist');
+                                    $blacklist = (array) $config->get('plugins.webmention.vouch.blacklist');
+                                    foreach ($whitelist as $entry) {
+                                        if (preg_match($entry, $vouch)) {
+                                            $vouchwhite = true;
+                                            $vouchvalid = true;
+                                            break;
+                                        }
+                                    }
+                                    //   Check blacklist if not whitelisted
+                                    if (! $vouchwhite) {
+                                        foreach ($blacklist as $entry) {
+                                            if (preg_match($entry, $vouch)) {
+                                                $vouchblack = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    //   Validate if not whitelisted
+                                    if ( (! $vouchvalid) && (! $vouchblack) ) {
+                                        $result = self::_get($vouch);
+                                        if (self::startsWith($result['code'], '2')) {
+                                            if (strpos($result['body'], $link['source_url']) !== false) {
+                                                $vouchvalid = true;
+                                                $mf2 = \Mf2\parse($result['body'], $vouch);
+                                                if ($mf2 !== null) {
+                                                    $link['vouch_mf2'] = $mf2;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                $this->output->writeln("\t\tVouch required? ".var_export($vouchrequired, true));
+                                $this->output->writeln("\t\tVouch whitelisted? ".var_export($vouchwhite, true));
+                                $this->output->writeln("\t\tVouch blacklisted? ".var_export($vouchblack, true));
+                                $this->output->writeln("\t\tVouch valid? ".var_export($vouchvalid, true));
+                            }
+                        }
+                        // Set valid
+                        $trulyvalid = $valid;
+                        if ( ($vouchrequired) && (!$vouchvalid) ) {
+                            $trulyvalid = false;
+                        }
+                        $link['valid'] = $trulyvalid;
+                        $this->output->writeln("\t\tMarking as valid? " . var_export($trulyvalid, true));
 
-                            if ($vouch !== null) {
-                                $result = $client->sendWebmention($page->permalink(), $link['url'], ['vouch' => $vouch]);    
+                        // Set visible
+                        $visible = false;
+                        if ($trulyvalid) {
+                            if ($vouchrequired) {
+                                if ($autoapprove === 'white') {
+                                    if ($vouchwhite) {
+                                        $visible = true;
+                                    }
+                                } elseif ($autoapprove === 'valid') {
+                                    if ($vouchvalid) {
+                                        $visible = true;
+                                    }
+                                }
                             } else {
-                                $result = $client->sendWebmention($page->permalink(), $link['url']);    
+                                $visible = true;
                             }
-                            //dump($result);
-                            $link['lastnotified'] = time();
-                            $link['laststatus'] = $result['code'];
-                            $msg = "Headers:\n";
-                            foreach ($result['headers'] as $key => $value) {
-                                $msg = $msg . $key . ': ' . $value . "\n";
-                            }
-                            $msg = $msg . "\nBody:\n";
-                            $msg = $msg . $result['body'];
-                            $link['lastmessage'] = $msg;
-                        } else {
-                            $this->output->writeln("\t\tWebmentions not supported");
-                            $link['lastnotified'] = time();
-                            $link['laststatus'] = null;
-                            $link['lastmessage'] = 'Webmention support not advertised';
                         }
+                        $link['visible'] = $visible;
+                        $this->output->writeln("\t\tMarking as visible? " . var_export($visible, true));
                     }
                 }
                 unset($link);
@@ -216,4 +348,50 @@ class VerifyCommand extends ConsoleCommand
         }        
         return $data;
     }
+
+  /**
+   * @codeCoverageIgnore
+   */
+  private static function _get($url) {
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HEADER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    $response = curl_exec($ch);
+    $header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+    return array(
+      'code' => curl_getinfo($ch, CURLINFO_HTTP_CODE),
+      'headers' => self::_parse_headers(trim(substr($response, 0, $header_size))),
+      'body' => substr($response, $header_size)
+    );
+  }
+
+  private static function _parse_headers($headers) {
+    $retVal = array();
+    $fields = explode("\r\n", preg_replace('/\x0D\x0A[\x09\x20]+/', ' ', $headers));
+    foreach($fields as $field) {
+      if(preg_match('/([^:]+): (.+)/m', $field, $match)) {
+        $match[1] = preg_replace_callback('/(?<=^|[\x09\x20\x2D])./', function($m) {
+          return strtoupper($m[0]);
+        }, strtolower(trim($match[1])));
+        // If there's already a value set for the header name being returned, turn it into an array and add the new value
+        $match[1] = preg_replace_callback('/(?<=^|[\x09\x20\x2D])./', function($m) {
+          return strtoupper($m[0]);
+        }, strtolower(trim($match[1])));
+        if(isset($retVal[$match[1]])) {
+          if(!is_array($retVal[$match[1]]))
+            $retVal[$match[1]] = array($retVal[$match[1]]);
+          $retVal[$match[1]][] = $match[2];
+        } else {
+          $retVal[$match[1]] = trim($match[2]);
+        }
+      }
+    }
+    return $retVal;
+  }
+
+    private static function startsWith($haystack, $needle) {
+        // search backwards starting from haystack length characters from the end
+        return $needle === "" || strrpos($haystack, $needle, -strlen($haystack)) !== false;
+    }    
 }

@@ -8,8 +8,8 @@ author:
 homepage: https://github.com/Perlkonig/grav-plugin-webmention
 keywords: grav, plugin, pingback, webmention
 bugs: https://github.com/Perlkonig/grav-plugin-webmention/issues
-readme: https://github.com/Perlkonig/grav-plugin-webmention/blob/develop/README.md
-docs: https://github.com/Perlkonig/grav-plugin-webmention/blob/develop/README.md
+readme: https://github.com/Perlkonig/grav-plugin-webmention/blob/master/README.md
+docs: https://github.com/Perlkonig/grav-plugin-webmention/blob/master/README.md
 license: MIT
 
 form:

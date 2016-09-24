@@ -83,7 +83,16 @@ class WebmentionPlugin extends Plugin
             }
             $enabled = $this->add_enable($enabled, 'onTwigTemplatePaths', ['onTwigTemplatePaths', 0]);
             // EXPOSE_DATA
+            if ($config->get('plugins.webmention.receiver.expose_data')) {
+                $enabled = $this->add_enable($enabled, 'onPagesInitialized', ['exposeData', 0]);
+            }
             // ADVERTISE
+            $advertise = $config->get('plugins.webmention.receiver.advertise_method');
+            if ($advertise === 'header') {
+                $enabled = $this->add_enable($enabled, 'onPagesInitialized', ['advertise_header', 100]);
+            } elseif ($advertise === 'link') {
+                $enabled = $this->add_enable($enabled, 'onOutputGenerated', ['advertise_link', 100]);
+            }
         }
 
         $this->enable($enabled);
@@ -106,6 +115,80 @@ class WebmentionPlugin extends Plugin
     private function endsWith($haystack, $needle) {
         // search forward starting from end minus needle length characters
         return $needle === "" || (($temp = strlen($haystack) - strlen($needle)) >= 0 && strpos($haystack, $needle, $temp) !== false);
+    }
+
+    public function exposeData(Event $e) {
+        $config = $this->grav['config'];
+        $datadir = $config->get('plugins.webmention.datadir');
+        $datafile = $config->get('plugins.webmention.receiver.file_data');
+        $root = DATA_DIR . $datadir . '/';
+        $filename = $root . $datafile;
+        $datafh = File::instance($filename);
+        $data = Yaml::parse($datafh->content());
+        if ($data === null) {
+            $data = array();
+        }
+        $datafh->free();
+
+        $node = null;
+        $permalink = $this->grav['page']->permalink();
+        if (array_key_exists($permalink, $data)) {
+            $node = $data[$permalink];
+        }
+        if ($node !== null) {
+            $config->set('plugins.webmention.data', $node);
+        }
+    }
+
+    public function advertise_header(Event $e) {
+        $config = $this->grav['config'];
+        // First determine if the route/path is permitted
+        $currRoute = $this->grav['uri']->route();
+        //   Receiver route
+        if ($this->startsWith($currRoute, $config->get('plugins.webmention.receiver.route'))) {
+            return;
+        }
+        //   Sender ignore_routes
+        $ignored = (array) $config->get('plugins.webmention.sender.ignore_routes');
+        foreach ($ignored as $route) {
+            if ($route === $currRoute) {
+                return;
+            }
+        }
+
+        $base = $this->grav['uri']->base();
+        $rcvr_route = $config->get('plugins.webmention.receiver.route');
+        $rcvr_url = $base.$rcvr_route;
+        header('Link: &lt;'.$rcvr_url.'&gt;; rel="webmention"', false);
+    }
+
+    public function advertise_link(Event $e) {
+        $config = $this->grav['config'];
+        // First determine if the route/path is permitted
+        $currRoute = $this->grav['uri']->route();
+        //   Receiver route
+        if ($this->startsWith($currRoute, $config->get('plugins.webmention.receiver.route'))) {
+            return;
+        }
+        //   Sender ignore_routes
+        $ignored = (array) $config->get('plugins.webmention.sender.ignore_routes');
+        foreach ($ignored as $route) {
+            if ($route === $currRoute) {
+                return;
+            }
+        }
+
+        $base = $this->grav['uri']->base();
+        $rcvr_route = $config->get('plugins.webmention.receiver.route');
+        $rcvr_url = $base.$rcvr_route;
+        $tag = '<link href="'.$rcvr_url.'" rel="webmention" />';
+
+        // inject before closing </head> tag
+        $output = $this->grav->output;
+        $output = substr_replace($output, $tag, strpos($output, '</head>'), 0);
+
+        // replace output
+        $this->grav->output = $output;
     }
 
     public function handleReceipt(Event $e) {
@@ -172,11 +255,16 @@ class WebmentionPlugin extends Plugin
             }
             //   $target must accept webmentions
             $accepts = true;
+            //     First check host and then check path
+            $parts = parse_url($target);
             foreach ($config->get('plugins.webmention.receiver.ignore_paths') as $route) {
                 if ($this->endsWith($target, $route)) {
                     $accepts = false;
                     break;
                 }
+            }
+            if ($parts['host'] !== $this->grav['uri']->host()) {
+                $accepts = false;
             }
             if (! $accepts) {
                 $this->throw_400($this->grav['language']->translate('PLUGIN_WEBMENTION.MESSAGES.BAD_REQUEST_BADROUTE'));
@@ -252,9 +340,12 @@ class WebmentionPlugin extends Plugin
                 foreach ($data[$target] as &$entry) {
                     if ($entry['source_url'] === $source) {
                         $isdupe = true;
-                        $entry['received'] = time();
+                        //$entry['received'] = time();
                         $entry['vouch_url'] = $vouch;
+                        $entry['source_mf2'] = null;
+                        $entry['source_mf2'] = null;
                         $entry['lastchecked'] = null;
+                        $entry['lastcode'] = null;
                         $entry['valid'] = null;
                         $entry['visible'] = false;
                         break;
@@ -271,7 +362,10 @@ class WebmentionPlugin extends Plugin
                     'hash' => $hash,
                     'received' => time(),
                     'vouch_url' => $vouch,
+                    'source_mf2' => null,
+                    'vouch_mf2' => null,
                     'lastchecked' => null,
+                    'lastcode' => null,
                     'valid' => null,
                     'visible' => false
                 ];
@@ -302,6 +396,12 @@ class WebmentionPlugin extends Plugin
         // Someone is asking about an earlier request
             // get the hash
             $route = $this->grav['uri']->route();
+
+            if ($route === $config->get('plugins.webmention.receiver.route')) {
+                $this->throw_405();
+                return;
+            }
+
             $hash = end(explode('/', $route));
 
             // find it
@@ -365,6 +465,15 @@ class WebmentionPlugin extends Plugin
         $pages = $this->grav['pages'];
         $page = new Page;
         $page->init(new \SplFileInfo(__DIR__ . '/pages/403-forbidden.md'));
+        $page->slug(basename($route));
+        $pages->addPage($page, $route);        
+    }
+
+    private function throw_405() {
+        $route = $this->grav['uri']->route();
+        $pages = $this->grav['pages'];
+        $page = new Page;
+        $page->init(new \SplFileInfo(__DIR__ . '/pages/405-method-not-allowed.md'));
         $page->slug(basename($route));
         $pages->addPage($page, $route);        
     }
