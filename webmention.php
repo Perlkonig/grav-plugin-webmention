@@ -164,28 +164,42 @@ class WebmentionPlugin extends Plugin
 
     public function advertise_link(Event $e) {
         $config = $this->grav['config'];
-        // First determine if the route/path is permitted
-        $currRoute = $this->grav['uri']->route();
-        //   Receiver route
-        if ($this->startsWith($currRoute, $config->get('plugins.webmention.receiver.route'))) {
+        $uri = $this->grav['uri'];
+
+        // First check that we do not advertise on the receiver itself.
+        if ($this->startsWith($uri->route(), $config->get('plugins.webmention.receiver.route'))) {
             return;
         }
-        //   Sender ignore_routes
-        $ignored = (array) $config->get('plugins.webmention.sender.ignore_routes');
-        foreach ($ignored as $route) {
-            if ($route === $currRoute) {
-                return;
-            }
+
+        // Also do not advertise on any pages for which incoming webmentions are ignored.
+        $currentPath = implode('/', array_slice($uri->paths(), 0, -1)) . '/' . $uri->basename();
+        $ignorePaths = $config->get('plugins.webmention.receiver.ignore_paths');
+        foreach ($ignorePaths as $ignore) {
+        	if ($this->endsWith($currentPath, $ignore)) {
+        	    return;
+        	}
         }
 
+        // Then only proceed if we are working on HTML.
+        if ($this->grav['page']->templateFormat() !== 'html') {
+            return;
+        }
+
+        // After that determine if a HEAD element exists to add the LINK to.
+        $output = $this->grav->output;
+        $headElement = strpos($output, '</head>');
+        if ($headElement === false) {
+            return;
+        }
+
+        // Build the LINK element.
         $base = $this->grav['uri']->base();
         $rcvr_route = $config->get('plugins.webmention.receiver.route');
         $rcvr_url = $base.$rcvr_route;
         $tag = '<link href="'.$rcvr_url.'" rel="webmention" />';
 
-        // inject before closing </head> tag
-        $output = $this->grav->output;
-        $output = substr_replace($output, $tag, strpos($output, '</head>'), 0);
+        // Inject LINK element before the HEAD element's closing tag.
+        $output = substr_replace($output, $tag, $headElement, 0);
 
         // replace output
         $this->grav->output = $output;
