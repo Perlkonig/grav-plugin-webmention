@@ -180,7 +180,7 @@ class WebmentionPlugin extends Plugin
         $base = $uri->base();
         $rcvr_route = $config->get('plugins.webmention.receiver.route');
         $rcvr_url = $base.$rcvr_route;
-        header('Link: &lt;'.$rcvr_url.'&gt;; rel="webmention"', false);
+        header('Link: <'.$rcvr_url.'>; rel="webmention"', false);
     }
 
     public function advertise_link(Event $e) {
