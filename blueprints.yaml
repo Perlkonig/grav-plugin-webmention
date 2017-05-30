@@ -1,5 +1,5 @@
 name: Webmention
-version: 1.0.0
+version: 1.1.0
 description: Implementation of the Webmention protocol (https://www.w3.org/TR/webmention/) with the Vouch extension
 icon: commenting-o
 author:
