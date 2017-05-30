@@ -3,6 +3,7 @@ namespace Grav\Plugin;
 
 use Grav\Common\Plugin;
 use Grav\Common\Uri;
+use Grav\Common\Config\Config;
 use Grav\Common\Page\Page;
 use RocketTheme\Toolbox\File\File;
 use RocketTheme\Toolbox\Event\Event;
@@ -140,52 +141,77 @@ class WebmentionPlugin extends Plugin
         }
     }
 
-    public function advertise_header(Event $e) {
-        $config = $this->grav['config'];
-        // First determine if the route/path is permitted
-        $currRoute = $this->grav['uri']->route();
-        //   Receiver route
-        if ($this->startsWith($currRoute, $config->get('plugins.webmention.receiver.route'))) {
-            return;
+    /**
+     * Determine whether to advertise the Webmention endpoint on the current page.
+     *
+     * @param  Uri    $uri    Grav Uri object for the current page.
+     * @param  Config $config Grav Config object containing plugin settings.
+     *
+     * @return boolean
+     */
+    private function shouldAdvertise(Uri $uri, Config $config) {
+        // First check that we do not advertise on the receiver itself.
+        if ($this->startsWith($uri->route(), $config->get('plugins.webmention.receiver.route'))) {
+            return false;
         }
-        //   Sender ignore_routes
-        $ignored = (array) $config->get('plugins.webmention.sender.ignore_routes');
-        foreach ($ignored as $route) {
-            if ($route === $currRoute) {
-                return;
+
+        // Also do not advertise on any pages for which incoming webmentions are ignored.
+        $currentPath = implode('/', array_slice($uri->paths(), 0, -1)) . '/' . $uri->basename();
+        $ignorePaths = $config->get('plugins.webmention.receiver.ignore_paths');
+        foreach ($ignorePaths as $ignore) {
+            if ($this->endsWith($currentPath, $ignore)) {
+                return false;
             }
         }
 
-        $base = $this->grav['uri']->base();
+        return true;
+    }
+    
+    public function advertise_header(Event $e) {
+        $uri = $this->grav['uri'];
+        $config = $this->grav['config'];
+
+        // Check if the current requested URL needs to advertise the endpoint.
+        if (!$this->shouldAdvertise($uri, $config)) {
+            return;
+        }
+
+        // Build and send the Link header.
+        $base = $uri->base();
         $rcvr_route = $config->get('plugins.webmention.receiver.route');
         $rcvr_url = $base.$rcvr_route;
-        header('Link: &lt;'.$rcvr_url.'&gt;; rel="webmention"', false);
+        header('Link: <'.$rcvr_url.'>; rel="webmention"', false);
     }
 
     public function advertise_link(Event $e) {
+        $uri = $this->grav['uri'];
         $config = $this->grav['config'];
-        // First determine if the route/path is permitted
-        $currRoute = $this->grav['uri']->route();
-        //   Receiver route
-        if ($this->startsWith($currRoute, $config->get('plugins.webmention.receiver.route'))) {
+
+        // Check if the current requested URL needs to advertise the endpoint.
+        if (!$this->shouldAdvertise($uri, $config)) {
             return;
         }
-        //   Sender ignore_routes
-        $ignored = (array) $config->get('plugins.webmention.sender.ignore_routes');
-        foreach ($ignored as $route) {
-            if ($route === $currRoute) {
-                return;
-            }
+
+        // Then only proceed if we are working on HTML.
+        if ($this->grav['page']->templateFormat() !== 'html') {
+            return;
         }
 
-        $base = $this->grav['uri']->base();
+        // After that determine if a HEAD element exists to add the LINK to.
+        $output = $this->grav->output;
+        $headElement = strpos($output, '</head>');
+        if ($headElement === false) {
+            return;
+        }
+
+        // Build the LINK element.
+        $base = $uri->base();
         $rcvr_route = $config->get('plugins.webmention.receiver.route');
         $rcvr_url = $base.$rcvr_route;
         $tag = '<link href="'.$rcvr_url.'" rel="webmention" />';
 
-        // inject before closing </head> tag
-        $output = $this->grav->output;
-        $output = substr_replace($output, $tag, strpos($output, '</head>'), 0);
+        // Inject LINK element before the HEAD element's closing tag.
+        $output = substr_replace($output, $tag, $headElement, 0);
 
         // replace output
         $this->grav->output = $output;
