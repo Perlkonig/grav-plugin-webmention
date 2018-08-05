@@ -1,3 +1,9 @@
+# v1.2.0
+## 08/05/2018
+
+1. [](#new)
+    * Added Dutch translation thanks to @metbril.
+
 # v1.1.0
 ##  05/30/2017
 
