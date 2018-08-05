@@ -39,3 +39,23 @@ fr:
         DATE_RECEIVED: "Date de réception"
         VALID: "Valider"
         APPROVED: "Approuvé"
+nl:
+  PLUGIN_WEBMENTION:
+    MESSAGES:
+      OK: 'Je Webmention is ontvangen en verwerkt.'
+      CREATED: 'Je Webmention is ontvangen en wordt later verwerkt.'
+      ACCEPTED: 'Je Webmention is ontvangen en wordt later verwerkt.'
+      BAD_REQUEST: 'Er is iets mis met je verzoek. Probeer het niet opnieuw totdat je de volgende foutmelding hebt gelezen en het probleem hebt verholpen.'
+      BAD_REQUEST_SPEC: 'Je verzoek voldoet niet aan de specificaties. Lees de documentatie, pas je verzoek aan en probeer het opnieuw.'
+      BAD_REQUEST_BADROUTE: 'Dit doel accepteert geen Webmentions.'
+      BAD_REQUEST_MISSING_VOUCH: 'Dit doel vereist dat Webmentions worden vergezeld van een geldige garantie.'
+      FORBIDDEN: 'Deze verzender staat op de zwarte lijst. Probeer het niet opnieuw.'
+      METHOD_NOT_ALLOWED: 'Voor deze resource kun je geen GET gebruiken. Je kunt alleen POST gebruiken volgens de Webmention specificaties.'
+      INTERNAL_ERROR: "Er is iets mis aan onze kant. We kunnen je Webmention op dit moment niet verwerken. Probeer het later opnieuw."
+      STATUS_UPDATE:
+        HEADING: 'Webmention Status'
+        MENTIONER: 'Benoemer'
+        MENTIONEE: 'Benoemde'
+        DATE_RECEIVED: 'Datum ontvangen'
+        VALID: 'Geldig'
+        APPROVED: 'Goedgekeurd'
