@@ -21,7 +21,264 @@ form:
       highlight: 1
       default: 0
       options:
-        1: Enabled
-        0: Disabled
+        1: PLUGIN_ADMIN.ENABLED
+        0: PLUGIN_ADMIN.DISABLED
       validate:
         type: bool
+    datadir:
+      type: text
+      label: PLUGIN_WEBMENTION.DATADIR
+      help: PLUGIN_WEBMENTION.DATADIR_HELP
+      size: medium
+      default: 'webmention'
+      required: true
+
+    sender:
+      type: section
+      title: PLUGIN_WEBMENTION.SENDER.SECTION_TITLE
+      text: PLUGIN_WEBMENTION.SENDER.SECTION_TEXT
+      underline: true
+
+      fields:
+        sender.enabled:
+          type: toggle
+          label: PLUGIN_WEBMENTION.SENDER.ENABLED
+          highlight: 1
+          default: 1
+          options:
+            1: PLUGIN_ADMIN.ENABLED
+            0: PLUGIN_ADMIN.DISABLED
+          validate:
+            type: bool
+
+        sender.page_only:
+          type: toggle
+          label: PLUGIN_WEBMENTION.SENDER.PAGE_ONLY
+          help: PLUGIN_WEBMENTION.SENDER.PAGE_ONLY_HELP
+          highlight: 1
+          default: 1
+          options:
+            1: PLUGIN_ADMIN.ENABLED
+            0: PLUGIN_ADMIN.DISABLED
+          validate:
+            type: bool
+
+        sender.automatic:
+          type: toggle
+          label: PLUGIN_WEBMENTION.SENDER.AUTOMATIC
+          help: PLUGIN_WEBMENTION.SENDER.AUTOMATIC_HELP
+          highlight: 1
+          default: 0
+          options:
+            1: PLUGIN_ADMIN.ENABLED
+            0: PLUGIN_ADMIN.DISABLED
+          validate:
+            type: bool
+
+        sender.ignore_routes:
+          type: selectize
+          label: PLUGIN_WEBMENTION.SENDER.IGNORE_ROUTES
+          help: PLUGIN_WEBMENTION.SENDER.IGNORE_ROUTES_HELP
+          placeholder: '/random, /any/other/route'
+          size: x-large
+          default:
+            - /random
+          validate:
+              type: commalist
+
+        sender.file_data:
+          type: text
+          label: PLUGIN_WEBMENTION.SENDER.FILE_DATA
+          help: PLUGIN_WEBMENTION.SENDER.FILE_DATA_HELP
+          placeholder: 'sent.yaml'
+          default: sent.yaml
+          size: small
+
+        sender.blacklist:
+          type: selectize
+          label: PLUGIN_WEBMENTION.SENDER.BLACKLIST
+          help: PLUGIN_WEBMENTION.SENDER.BLACKLIST_HELP
+          placeholder: "'/\\/\\/.*?wordpress\.com/'"
+          size: x-large
+          validate:
+              type: commalist
+
+    receiver:
+      type: section
+      title: PLUGIN_WEBMENTION.RECEIVER.SECTION_TITLE
+      text: PLUGIN_WEBMENTION.RECEIVER.SECTION_TEXT
+      underline: true
+
+      fields:
+        receiver.enabled:
+          type: toggle
+          label: PLUGIN_WEBMENTION.RECEIVER.ENABLED
+          highlight: 1
+          default: 1
+          options:
+            1: PLUGIN_ADMIN.ENABLED
+            0: PLUGIN_ADMIN.DISABLED
+          validate:
+            type: bool
+        
+        receiver.expose_data:
+          type: toggle
+          label: PLUGIN_WEBMENTION.RECEIVER.EXPOSE_DATA
+          help: PLUGIN_WEBMENTION.RECEIVER.EXPOSE_DATA_HELP
+          highlight: 1
+          default: 1
+          options:
+            1: PLUGIN_ADMIN.ENABLED
+            0: PLUGIN_ADMIN.DISABLED
+          validate:
+            type: bool
+
+        receiver.advertise_method:
+          type: select
+          label: PLUGIN_WEBMENTION.RECEIVER.ADVERTISE_METHOD
+          help: PLUGIN_WEBMENTION.RECEIVER.ADVERTISE_METHOD_HELP
+          options:
+              - header
+              - link
+              - manual
+          default: header
+          size: small
+
+        receiver.route:
+          type: text
+          label: PLUGIN_WEBMENTION.RECEIVER.ROUTE
+          help: PLUGIN_WEBMENTION.RECEIVER.ROUTE_HELP
+          placeholder: '/webmention'
+          default: '/webmention'
+          size: small
+        
+        receiver.status_updates:
+          type: toggle
+          label: PLUGIN_WEBMENTION.RECEIVER.STATUS_UPDATES
+          help: PLUGIN_WEBMENTION.RECEIVER.STATUS_UPDATES_HELP
+          highlight: 1
+          default: 1
+          options:
+            1: PLUGIN_ADMIN.ENABLED
+            0: PLUGIN_ADMIN.DISABLED
+          validate:
+            type: bool
+
+        receiver.ignore_paths:
+          type: selectize
+          label: PLUGIN_WEBMENTION.RECEIVER.IGNORE_PATHS
+          help: PLUGIN_WEBMENTION.RECEIVER.IGNORE_PATHS_HELP
+          placeholder: '/random, /any/other/path'
+          size: x-large
+          default:
+            - /random
+          validate:
+              type: commalist
+
+        receiver.file_data:
+          type: text
+          label: PLUGIN_WEBMENTION.RECEIVER.FILE_DATA
+          help: PLUGIN_WEBMENTION.RECEIVER.FILE_DATA_HELP
+          placeholder: 'received.yaml'
+          default: 'received.yaml'
+          size: small
+
+        receiver.whitelist:
+          type: selectize
+          label: PLUGIN_WEBMENTION.RECEIVER.WHITELIST
+          help: PLUGIN_WEBMENTION.RECEIVER.WHITELIST_HELP
+          placeholder: "'/\\/\\/.*?wordpress\.org/'"
+          size: x-large
+          validate:
+              type: commalist
+
+        receiver.blacklist:
+          type: selectize
+          label: PLUGIN_WEBMENTION.RECEIVER.BLACKLIST
+          help: PLUGIN_WEBMENTION.RECEIVER.BLACKLIST_HELP
+          placeholder: "'/\\/\\/.*?wordpress\.com/'"
+          size: x-large
+          validate:
+              type: commalist
+
+        receiver.blacklist_silently:
+          type: toggle
+          label: PLUGIN_WEBMENTION.RECEIVER.BLACKLIST_SILENTLY
+          help: PLUGIN_WEBMENTION.RECEIVER.BLACKLIST_SILENTLY_HELP
+          highlight: 1
+          default: 1
+          options:
+            1: PLUGIN_ADMIN.ENABLED
+            0: PLUGIN_ADMIN.DISABLED
+          validate:
+            type: bool
+
+    vouch:
+      type: section
+      title: PLUGIN_WEBMENTION.VOUCH.SECTION_TITLE
+      text: PLUGIN_WEBMENTION.VOUCH.SECTION_TEXT
+      underline: true
+
+      fields:
+        vouch.enabled:
+          type: toggle
+          label: PLUGIN_WEBMENTION.VOUCH.ENABLED
+          highlight: 1
+          default: 1
+          options:
+            1: PLUGIN_ADMIN.ENABLED
+            0: PLUGIN_ADMIN.DISABLED
+          validate:
+            type: bool
+          
+        vouch.required:
+          type: toggle
+          label: PLUGIN_WEBMENTION.VOUCH.REQUIRED
+          highlight: 0
+          default: 0
+          options:
+            1: PLUGIN_ADMIN.ENABLED
+            0: PLUGIN_ADMIN.DISABLED
+          validate:
+            type: bool
+
+        vouch.auto_approve:
+          type: select
+          label: PLUGIN_WEBMENTION.VOUCH.AUTO_APPROVE
+          help: PLUGIN_WEBMENTION.VOUCH.AUTO_APPROVE_HELP
+          options:
+              - white
+              - valid
+              - none
+          default: valid
+          size: small
+
+        vouch.sender_map:
+          type: array
+          label: PLUGIN_WEBMENTION.VOUCH.SENDER_MAP
+          help: PLUGIN_WEBMENTION.VOUCH.SENDAR_MAP_HELP
+          placeholder_key: '/\/\/alice.example.com/'
+          placeholder_value: 'http://bob.example.com/i/love/my/cat'
+          size: x-large
+          validate:
+              type: commalist
+
+        vouch.whitelist:
+          type: selectize
+          label: PLUGIN_WEBMENTION.VOUCH.WHITELIST
+          help: PLUGIN_WEBMENTION.VOUCH.WHITELIST_HELP
+          placeholder: "'/\\/\\/.*?wordpress\.org/'"
+          size: x-large
+          validate:
+              type: commalist
+
+        vouch.blacklist:
+          type: selectize
+          label: PLUGIN_WEBMENTION.VOUCH.BLACKLIST
+          help: PLUGIN_WEBMENTION.VOUCH.BLACKLIST_HELP
+          placeholder: "'/\\/\\/.*?wordpress\.com/'"
+          size: x-large
+          validate:
+              type: commalist
+
+        

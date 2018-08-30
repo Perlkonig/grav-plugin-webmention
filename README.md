@@ -180,7 +180,7 @@ The Vouch extension is a way of establishing "trust". It demonstrates to first-t
 
 ### Admin Page
 
-Unfortunately I have no experience with the Grav admin system, nor do I ever plan on using it, so this plugin currently only supports command-line interaction. I know there are other ways to create HTML interfaces outside of the admin plugin, but the admin plugin seems to be the logical place. I will eventually explore those options, but I don't have time at the moment. I warmly welcome pull requests that would provide any HTML interaction with the config and data.
+The plugin can be fully configured through the admin interface.
 
 ### Command-Line Interface
 

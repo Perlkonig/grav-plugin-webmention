@@ -1,5 +1,58 @@
 en:
   PLUGIN_WEBMENTION:
+    DATADIR: Data Directory
+    DATADIR_HELP: The name of the subdirectory in the 'user/data' folder that will contain the data files
+    SENDER_TITLE: Sender
+    SENDER:
+      SECTION_TITLE: Sender Module
+      SECTION_TEXT: The sender module detects external links in your own posts and notifies them of the link
+      ENABLED: Enable module
+      PAGE_ONLY: Page Only
+      PAGE_ONLY_HELP: Scan page content only, or entire generated output.
+      AUTOMATIC: Send Automatically
+      AUTOMATIC_HELP: Automatically send mentions. Might slow down your site.
+      IGNORE_ROUTES: Ignore Routes
+      IGNORE_ROUTES_HELP: Disable the sender module for specific routes.
+      FILE_DATA: Data File
+      FILE_DATA_HELP: Data file for sent mentions
+      BLACKLIST: Blacklist
+      BLACKLIST_HELP: List of domain and path patterns for links the plugin will never notify.
+    RECEIVER:
+      SECTION_TITLE: Receiver Module
+      SECTION_TEXT: The receiver module accepts notifications of links to your site.
+      ENABLED: Enable Module
+      EXPOSE_DATA: Expose Data
+      EXPOSE_DATA_HELP: Expose data to the Grav system via the 'config.plugins.webmention.data' namespace.
+      ADVERTISE_METHOD: Advertise Method
+      ADVERTISE_METHOD_HELP: The method used to advertise to external clients that you accept webmentions.
+      ROUTE: Route
+      ROUTE_HELP: The route external clients will need to contact to notify you.
+      STATUS_UPDATES: Status Updates
+      STATUS_UPDATES_HELP: Determines whether the plugin will allow mentioners to request status updates.
+      IGNORE_PATHS: Ignore Paths
+      IGNORE_PATHS_HELP: Paths you will not accept webmentions for nor advertise webmention functionality.
+      FILE_DATA: Data File
+      FILE_DATA_HELP: The data file for received notifications.
+      WHITELIST: Whitelist
+      WHITELIST_HELP: A list of domain/path patterns for receivers you wish to accept without vouches.
+      BLACKLIST: Blacklist
+      BLACKLIST_HELP: A list of domain/path patterns for receivers you never wish to acknowledge webmentions from.
+      BLACKLIST_SILENTLY: Blacklist Silently
+      BLACKLIST_SILENTLY_HELP: Determines how the plugin will handle blacklisted requests.
+    VOUCH:
+      SECTION_TITLE: Vouch Module
+      SECTION_TEXT: The vouch module implements the Vouch extension of the webmention specification.
+      ENABLED: Enable Module
+      REQUIRED: Required
+      REQUIRED_HELP: Make submission of valid vouches mandatory for received mentions.
+      AUTO_APPROVE: Auto Approve
+      AUTO_APPROVE_HELP: Automatically approve mentions.
+      SENDER_MAP: Sender Map
+      SENDER_MAP_HELP: List of domain/path patterns that are matched by the 'sender' module against external links. 
+      WHITELIST: Whitelist
+      WHITELIST_HELP: List of domain/path patterns matching URLs you accept as valid vouches without doing any actual checks.
+      BLACKLIST: Blacklist
+      BLACKLIST_HELP: List of domain/path patterns matching URLs you will never accept as valid vouches.
     MESSAGES:
       OK: 'Your webmention has been received and processed.'
       CREATED: 'Your webmention has been recieved and will be processed later.'
