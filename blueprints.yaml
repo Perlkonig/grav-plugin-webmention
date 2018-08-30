@@ -256,7 +256,7 @@ form:
         vouch.sender_map:
           type: array
           label: PLUGIN_WEBMENTION.VOUCH.SENDER_MAP
-          help: PLUGIN_WEBMENTION.VOUCH.SENDAR_MAP_HELP
+          help: PLUGIN_WEBMENTION.VOUCH.SENDER_MAP_HELP
           placeholder_key: '/\/\/alice.example.com/'
           placeholder_value: 'http://bob.example.com/i/love/my/cat'
           size: x-large
@@ -280,5 +280,3 @@ form:
           size: x-large
           validate:
               type: commalist
-
-        
