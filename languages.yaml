@@ -2,7 +2,6 @@ en:
   PLUGIN_WEBMENTION:
     DATADIR: Data Directory
     DATADIR_HELP: The name of the subdirectory in the 'user/data' folder that will contain the data files
-    SENDER_TITLE: Sender
     SENDER:
       SECTION_TITLE: Sender Module
       SECTION_TEXT: The sender module detects external links in your own posts and notifies them of the link
