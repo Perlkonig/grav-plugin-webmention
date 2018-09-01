@@ -1,3 +1,9 @@
+# v1.3.0
+## 09/01/2018
+
+1. [](#new)
+    * Now configurable via the Admin module thanks to @metbril.
+
 # v1.2.0
 ## 08/05/2018
 

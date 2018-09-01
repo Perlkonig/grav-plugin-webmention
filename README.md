@@ -81,7 +81,7 @@ vouch:
 
 - The `datadir` field is the name of the subdirectory that will be created in the `user/data` folder that will contain the data files.
 
-- `file_url_name_map` is a file that maps domain/path patterns to human-readable names. It is used by both the `receiver` and `vouch` modules.
+- `url_name_map` is a list of regular expressions that map domain/path patterns to human-readable names. It could be used by your own code that displays mentions.
 
 - The plugin has three modules, each with its specific config:
 
