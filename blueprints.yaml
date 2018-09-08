@@ -138,9 +138,9 @@ form:
           label: PLUGIN_WEBMENTION.RECEIVER.ADVERTISE_METHOD
           help: PLUGIN_WEBMENTION.RECEIVER.ADVERTISE_METHOD_HELP
           options:
-              - header
-              - link
-              - manual
+              header: 'Header'
+              link: 'Link'
+              manual: 'Manual'
           default: header
           size: small
 
@@ -247,9 +247,9 @@ form:
           label: PLUGIN_WEBMENTION.VOUCH.AUTO_APPROVE
           help: PLUGIN_WEBMENTION.VOUCH.AUTO_APPROVE_HELP
           options:
-              - white
-              - valid
-              - none
+              white: 'White'
+              valid: 'Valid'
+              none: 'None'
           default: valid
           size: small
 
