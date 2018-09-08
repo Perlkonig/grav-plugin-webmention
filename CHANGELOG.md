@@ -1,3 +1,9 @@
+# v1.3.1
+## 09/08/2018
+
+1. [](#bugfix)
+    * Fixes to the "select" fields.
+
 # v1.3.0
 ## 09/01/2018
 
