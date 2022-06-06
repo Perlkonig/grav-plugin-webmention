@@ -1,5 +1,7 @@
 # Webmention Plugin
 
+***Abandonment Notice:** I'm afraid I simply don't have the time to maintain my Grav themes and plugins. Those interested in taking over should refer to the ["Abandoned Resource Protocol"](https://learn.getgrav.org/17/advanced/grav-development#abandoned-resource-protoc). Feel free to fork and replace. So long, and thanks for all the fish.*
+
 The **Webmention** Plugin is for [Grav CMS](http://github.com/getgrav/grav). It implements the [Webmention protocol](https://www.w3.org/TR/webmention/) with [the Vouch extension](https://indieweb.org/Vouch).
 
 This plugin is in a beta state. It *does* work, but it has not been extensively tested. It's a young spec and adoption is limited. I encourage people to install it and use it and provide feedback and pull requests. The only way specs like this get adopted is by people using it. Go to.
